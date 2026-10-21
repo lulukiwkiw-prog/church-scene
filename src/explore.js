@@ -271,7 +271,7 @@ canvas.addEventListener('click', () => {
   if (isTouch || document.pointerLockElement) return;
   try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch { /* 不支援就用拖曳 */ }
 });
-document.addEventListener('pointerlockchange', () => { $('hint').hidden = !!document.pointerLockElement; });
+
 
 function turn(dx, dy, k) {
   state.yaw -= dx * k;
@@ -443,6 +443,11 @@ load()
   .then(() => {
     $('loading').hidden = true;
     $('hud').hidden = false;
+    // 提示停留幾秒，或第一次操作就收起
+    const hideHint = () => { $('hint').hidden = true; };
+    setTimeout(hideHint, 7000);
+    addEventListener('keydown', hideHint, { once: true });
+    addEventListener('pointerdown', hideHint, { once: true });
     clock.getDelta();
     requestAnimationFrame(frame);
   })
