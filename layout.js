@@ -649,7 +649,7 @@ const parvis = {
 // 周邊環境（只是量體，不做細節）
 // -----------------------------------------------------------------------------
 const surroundings = {
-  island: { x0: -232, x1: 240, z0: -160, z1: 58, y: 0 },
+  island: { x0: -340, x1: 240, z0: -160, z1: 58, y: 0 },
   seine: {
     // 南支流：水面在地面下約 8 m
     south: { x0: -260, x1: 300, z0: 58, z1: 110, waterY: -8.0 },
@@ -674,6 +674,10 @@ const surroundings = {
     { id: 'hotelDieu', x0: -126, x1: -16, z0: -120, z1: -58, eave: 20, ridge: 26, arcadedGround: true },
     { id: 'prefecture', x0: -230, x1: -142, z0: -120, z1: 40, eave: 22, ridge: 28 },
     { id: 'cloitreBlock1', x0: 10, x1: 70, z0: -80, z1: -42, eave: 18, ridge: 22 },
+    // 遠景街廓（只為了讓高空鏡頭的島外不空）
+    { id: 'citeNorthWest', x0: -120, x1: -20, z0: -160, z1: -128, eave: 19, ridge: 24, varied: true },
+    { id: 'citeNorthEast', x0: 0, x1: 140, z0: -160, z1: -92, eave: 18, ridge: 23, varied: true },
+    { id: 'citeWest', x0: -330, x1: -240, z0: -160, z1: 40, eave: 21, ridge: 27, varied: true },
     { id: 'cloitreBlock2', x0: 74, x1: 140, z0: -80, z1: -42, eave: 17, ridge: 21 },
     // 塞納河對岸（左岸，蒙特貝羅堤岸）的一排建築
     { id: 'leftBankRow', x0: -200, x1: 220, z0: 120, z1: 140, eave: 21, ridge: 26, varied: true },
@@ -726,11 +730,13 @@ const camera = {
     { t: 10, position: [-80, 1.7, 8], target: [0, 26, 0], fovDeg: 46 },
     { t: 20, position: [-30, 1.7, 2], target: [0, 10, 0], fovDeg: 44, shot: '走近最後審判門' },
     { t: 27, position: [-12, 1.7, 0], target: [1.5, 9.5, 0], fovDeg: 40, shot: '門楣浮雕與門側使徒像' },
-    { t: 34, position: [-11, 2.5, -9], target: [1.0, 7.5, -TOWER_CENTER_Z], fovDeg: 40, shot: '橫移到聖母門' },
+    { t: 34, position: [-12, 3.2, -9], target: [1.0, 6.5, -TOWER_CENTER_Z], fovDeg: 40, shot: '橫移到聖母門' },
     { t: 41, position: [-13, 18, -3], target: [0, 19.2, 0], fovDeg: 42, shot: '升到國王廊' },
     { t: 48, position: [-14, 30, 3], target: [0, 30.5, 0], fovDeg: 42, shot: '西玫瑰窗與聖母、天使像' },
-    { t: 55, position: [-7, 47.5, -26], target: [0, 46.6, -FACADE_HALF_W], fovDeg: 38, shot: '沉思者 Le Stryge' },
-    { t: 62, position: [-40, 40, 70], target: [40, 34, 0], fovDeg: 45 },
+    // 從西北偏西拍沉思者，讓受光的西面當背景；停留兩秒
+    { t: 55, position: [-4.5, 47.6, -24.5], target: [0, 46.8, -FACADE_HALF_W], fovDeg: 32, shot: '沉思者 Le Stryge' },
+    { t: 57, position: [-5.5, 48.0, -25.5], target: [0, 46.8, -FACADE_HALF_W], fovDeg: 32 },
+    { t: 63, position: [-34, 44, 34], target: [35, 34, 0], fovDeg: 45 },
     { t: 70, position: [-22, 24, 112], target: [55, 38, 0], fovDeg: 45, shot: '塞納河上空：南側飛扶壁、南袖廊玫瑰窗、尖塔' },
   ],
 };
