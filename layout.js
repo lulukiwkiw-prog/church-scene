@@ -42,6 +42,38 @@ export function compassToLocal(azimuthDeg, elevationDeg = 0) {
 }
 
 // -----------------------------------------------------------------------------
+// 尖拱與門洞的共用幾何（立面與雕刻兩個模組都必須用這裡算，才會對齊）
+// -----------------------------------------------------------------------------
+/** 等邊尖拱：跨度 span、拱頂高 apex → 起拱高、兩圓心、半徑 */
+export function pointedArch(span, apex) {
+  const radius = span;                         // 等邊尖拱：半徑 = 跨度
+  const rise = round(span * Math.sqrt(3) / 2); // 起拱線到拱頂
+  return { span, apex, radius, rise, springing: round(apex - rise), centers: [span / 2, -span / 2] /* 相對中線的水平位置 */ };
+}
+
+/**
+ * 門的第 k 圈拱圈（0 = 最內圈）：沿門洞斜面由內往外線性內插。
+ * x 為該圈的深度（從立面往內），span/apex 為該圈中心線的尖拱。
+ */
+export function archivoltRing(portal, k) {
+  const f = (k + 0.5) / portal.archivolts;
+  const span = portal.openingWidth + (portal.outerWidth - portal.openingWidth) * f;
+  const apex = portal.openingApex + (portal.outerApex - portal.openingApex) * f;
+  return { k, x: round(portal.splayDepth * (1 - f)), width: round((portal.outerWidth - portal.openingWidth) / 2 / portal.archivolts), ...pointedArch(round(span), round(apex)) };
+}
+
+/** 門楣（tympanum）分層：下兩條橫帶 + 上方尖拱半月面；位於 x = splayDepth 的平面 */
+export function tympanumRegisters(portal) {
+  const y0 = portal.doorHeight;
+  const bands = portal.tympanumBands || [1.0];
+  const regs = [];
+  let y = y0;
+  for (const hgt of bands) { regs.push({ y0: round(y), y1: round(y + hgt), shape: 'band' }); y += hgt; }
+  regs.push({ y0: round(y), y1: portal.openingApex, shape: 'lunette', arch: pointedArch(portal.openingWidth, portal.openingApex) });
+  return { x: portal.splayDepth, width: portal.openingWidth, registers: regs };
+}
+
+// -----------------------------------------------------------------------------
 // 共用斷面尺寸（中殿與詩班席相同）
 // z 皆為「半寬」，南北對稱，北側取負值。
 // -----------------------------------------------------------------------------
@@ -114,6 +146,8 @@ const facadeButtresses = [-19.2, -7.3, 7.3, 19.2].map((z) => ({
   projection: 1.6, // 往廣場凸出：x 從 -1.6 到 0
   top: 44.0,       // 到大迴廊底
   setbacks: [{ y: 17.0, projection: 1.2 }, { y: 22.5, projection: 0.8 }, { y: 38.0, projection: 0.5 }],
+  // 照片：玫瑰窗層的扶壁正面各有一座帶三角頂的小龕（gâble）
+  gablet: { y: 27.5, height: 3.0, width: 1.8 },
 }));
 
 /** 依門洞參數產生門側像（jamb statues）沿斜面（splay）的位置 */
@@ -138,31 +172,39 @@ function jambStatues(p, perSide, baseY, height) {
 function portal(def) {
   const p = { ...def };
   p.jambStatues = jambStatues(p, def.jambStatuesPerSide, 1.9, 2.6);
+  // 門側像下方的基座：兩排四葉形浮雕圓章（美德與惡習、月令）
+  p.socle = { height: 1.9, medallionRows: 2, medallionShape: 'quatrefoil' };
+  // 照片：每座門的拱圈外層都有一圈連續捲葉飾
+  p.outerCrockets = true;
   p.trumeauStatue = { x: round(p.splayDepth - 0.5), y: 1.6, z: p.z, height: 3.0, subject: def.trumeauSubject };
   return p;
 }
 
 const westPortals = [
   portal({
+    // 比例依照片量測（以門側像與行人為尺）
     id: 'portalVirgin', name: '聖母門 Portail de la Vierge', z: -TOWER_CENTER_Z,
-    openingWidth: 4.8, doorHeight: 6.6, openingApex: 10.2,
-    outerWidth: 9.0, outerApex: 13.8, splayDepth: 2.8,
+    openingWidth: 4.4, doorHeight: 5.0, openingApex: 8.9,
+    outerWidth: 9.0, outerApex: 12.0, splayDepth: 2.8,
     archivolts: 4, jambStatuesPerSide: 4, trumeauSubject: '聖母子',
-    tympanumRegisters: 3, gable: { apex: 16.6, width: 9.4 }, // 只有聖母門上方有三角楣
+    tympanumRegisters: 3, tympanumBands: [0.9, 1.1], gable: { apex: 14.4, width: 9.4 }, // 只有聖母門上方有三角楣
+    doors: { leaves: 2, ironwork: 'scrolls' }, // 兩側門：滿版鍛鐵捲花鉸鏈
   }),
   portal({
     id: 'portalJudgment', name: '最後審判門 Portail du Jugement dernier', z: 0,
-    openingWidth: 5.6, doorHeight: 7.0, openingApex: 11.6,
-    outerWidth: 10.4, outerApex: 15.2, splayDepth: 3.2,
+    openingWidth: 4.6, doorHeight: 5.4, openingApex: 10.6,
+    outerWidth: 11.6, outerApex: 15.2, splayDepth: 3.2,
     archivolts: 6, jambStatuesPerSide: 6, trumeauSubject: '基督（Beau Dieu）', // 十二使徒
-    tympanumRegisters: 3, gable: null,
+    tympanumRegisters: 3, tympanumBands: [1.0, 1.3], gable: null, // 下：死者復活；中：秤靈魂；上：審判的基督
+    doors: { leaves: 2, ironwork: 'plain' }, // 中門：素面木門
   }),
   portal({
     id: 'portalStAnne', name: '聖安娜門 Portail Sainte-Anne', z: TOWER_CENTER_Z,
-    openingWidth: 4.8, doorHeight: 6.6, openingApex: 10.2,
-    outerWidth: 9.0, outerApex: 13.8, splayDepth: 2.8,
+    openingWidth: 4.4, doorHeight: 5.0, openingApex: 8.9,
+    outerWidth: 9.0, outerApex: 12.0, splayDepth: 2.8,
     archivolts: 4, jambStatuesPerSide: 4, trumeauSubject: '聖瑪塞爾 Saint Marcel',
-    tympanumRegisters: 3, gable: null,
+    tympanumRegisters: 3, tympanumBands: [0.9, 1.1], gable: null,
+    doors: { leaves: 2, ironwork: 'scrolls' },
   }),
 ];
 
@@ -184,16 +226,26 @@ const galleryOfKings = {
 const roseTier = {
   yBottom: 22.5, yTop: 38.0,
   terrace: { y: 22.5, depth: 1.6, balustradeHeight: 1.0 }, // 聖母露臺
-  westRose: { x: 0.4, y: 30.5, z: 0, diameter: 9.6, outerRings: 2, petals: 24 },
+  // 照片：中心小圓 → 12 根內圈放射細柱 → 24 根外圈細柱，外緣一圈尖瓣拱
+  westRose: {
+    x: 0.4, y: 30.5, z: 0, diameter: 9.6,
+    centerOculusDiameter: 1.8, innerSpokes: 12, outerSpokes: 24, petals: 24,
+    enclosingArch: { width: 12.0, apex: 37.0, mouldings: 3 }, // 包住玫瑰窗的大圓拱
+  },
+  // 照片：塔段為一個大尖拱包住兩扇尖窗，上方一個玫瑰圓窗
   towerWindows: [-TOWER_CENTER_Z, TOWER_CENTER_Z].map((z) => ({
-    z, sill: 24.0, height: 12.0, width: 7.0, lancets: 2, oculus: true, // 雙尖拱 + 頂部圓窗
+    z, sill: 24.0, height: 12.0, width: 7.0, lancets: 2,
+    lancetWidth: 2.2, lancetHeight: 7.2, oculusDiameter: 2.8, oculusY: 33.2,
   })),
+  // 照片：拱肩牆面上的三葉形盲飾圓章
+  wallRosettes: [-19.0, -8.5, -5.0, 5.0, 8.5, 19.0].map((z) => ({ x: -0.05, y: 36.2, z, diameter: 1.8, lobes: 3 })),
   statues: [
     { id: 'virgin', subject: '聖母子', x: -0.8, y: 23.5, z: 0, height: 4.0 },
     { id: 'angelN', subject: '天使', x: -0.8, y: 23.5, z: -2.6, height: 3.2 },
     { id: 'angelS', subject: '天使', x: -0.8, y: 23.5, z: 2.6, height: 3.2 },
-    { id: 'adam', subject: '亞當', x: -0.8, y: 23.5, z: -9.0, height: 3.2 },
-    { id: 'eve', subject: '夏娃', x: -0.8, y: 23.5, z: 9.0, height: 3.2 },
+    // 照片：亞當、夏娃站在兩側塔窗中間的窗柱前
+    { id: 'adam', subject: '亞當', x: -0.8, y: 23.5, z: -TOWER_CENTER_Z, height: 3.2 },
+    { id: 'eve', subject: '夏娃', x: -0.8, y: 23.5, z: TOWER_CENTER_Z, height: 3.2 },
   ],
 };
 
@@ -201,7 +253,10 @@ const roseTier = {
 const grandGallery = {
   yBottom: 38.0, arcadeTop: 44.0, balustradeTop: 46.0,
   colonnetteRadius: 0.18,
-  archesPerSection: { northTower: 6, center: 6, southTower: 6 }, // 示意
+  // 照片：細長雙柱、三葉形拱頂；每個開間兩道尖拱
+  baysPerSection: { northTower: 4, center: 3, southTower: 4 },
+  lancetsPerBay: 2,
+  tracery: 'trefoil',
   sections: [
     { id: 'northTower', z0: -FACADE_HALF_W, z1: -6.0 },
     { id: 'center', z0: -6.0, z1: 6.0 },
@@ -217,7 +272,11 @@ for (const [z0, z1] of [[-FACADE_HALF_W, -6.0], [6.0, FACADE_HALF_W]]) {
   }
   chimeras.push({ x: 0.0, y: 46.0, z: round((z0 + z1) / 2), height: 1.4 });
 }
-const chimerasWithId = chimeras.map((c, i) => ({ id: `chimera${i}`, ...c, facingOutward: true }));
+// 北塔西北角那隻就是托腮望向巴黎的「沉思者」Le Stryge
+const chimerasWithId = chimeras.map((c, i) => {
+  const stryge = c.x === 0 && c.z === -FACADE_HALF_W;
+  return { id: stryge ? 'stryge' : `chimera${i}`, ...c, ...(stryge ? { height: 1.9, pose: 'chinOnHands' } : {}), facingOutward: true };
+});
 
 const towers = [
   { id: 'northTower', z0: -FACADE_HALF_W, z1: -6.0 },
@@ -228,13 +287,18 @@ const towers = [
   belfry: {
     yBottom: 46.0, yTop: 68.0,
     // 每一面兩扇高窄百葉尖窗（abat-son），中心在塔面中心 ± 2.6
-    openings: { perFace: 2, width: 2.4, sill: 48.0, height: 16.0, offset: 2.6 },
+    openings: { perFace: 2, width: 2.4, sill: 48.0, height: 16.0, offset: 2.6, archivolts: 3, louvres: true },
   },
+  // 照片：塔角扶壁滿佈細長盲拱與捲葉，頂端小尖塔
   cornerButtresses: { size: 1.6, top: 64.0, pinnacleTip: 66.0 },
-  terrace: { y: 68.0, balustradeTop: 69.0 }, // 塔高 69 m（平頂）
+  topCornice: { y: 66.5, corbelTable: true },
+  terrace: { y: 68.0, balustradeTop: 69.0, roof: { type: 'lowHip', rise: 2.0 } }, // 塔高 69 m；平台中央低坡鉛頂
 }));
-// 北塔東北角的樓梯小塔，略高於平台（示意）
-const stairTurret = { x: 12.0, z: -19.5, radius: 1.5, top: 71.5, roof: 'cone' };
+// 照片：每座塔外側西角各有一座樓梯小塔，圓錐頂略高出欄杆
+const stairTurrets = [
+  { tower: 'northTower', x: 1.2, z: -19.3 },
+  { tower: 'southTower', x: 1.2, z: 19.3 },
+].map((t) => ({ ...t, radius: 1.3, top: 70.0, coneTip: 73.0 }));
 
 // 立面扶壁正面壁龕雕像
 const buttressNicheStatues = [
@@ -242,7 +306,7 @@ const buttressNicheStatues = [
   { subject: '教會 Ecclesia', z: -7.3 },
   { subject: '會堂 Synagoga', z: 7.3 },
   { subject: '聖艾蒂安 Saint Étienne', z: 19.2 },
-].map((s) => ({ ...s, x: -1.75, y: 8.5, height: 2.8 }));
+].map((s) => ({ ...s, x: -1.75, y: 5.6, height: 2.8, canopy: { height: 1.4 } }));
 
 // -----------------------------------------------------------------------------
 // 扶壁墩、飛扶壁、小尖塔、滴水獸（全部由開間自動產生）
@@ -315,12 +379,19 @@ for (const t of towers) {
 }
 
 // 窗
-const windows = { clerestory: [], chapel: [] };
+const windows = { clerestory: [], chapel: [], tribuneOculi: [] };
+const chapelGablets = []; // 照片：側禮拜堂每個開間的窗上有一座三角山花
 for (const x of [...naveBayCenters, ...choirBayCenters]) {
   for (const s of [-1, 1]) {
     windows.clerestory.push({ x, z: s * wallOuterZ, sill: 24.5, height: 8.5, width: 3.2, lancets: 2, oculus: true });
     windows.chapel.push({ x, z: s * SECTION.chapelOuterZ, sill: 3.0, height: 7.0, width: 3.2, lancets: 2, oculus: true });
+    chapelGablets.push({ x, z: s * SECTION.chapelOuterZ, base: HEIGHTS.aisleRoofLow, apex: 15.5, width: 4.0 });
   }
+}
+// 照片：緊鄰交叉部的開間，高窗下方有維奧萊-勒-杜克復原的 12 世紀圓窗，
+// 那幾個開間的樓廊屋頂改成較低的平台（terraceY）
+for (const x of [naveBayCenters[NAVE_BAYS - 1], choirBayCenters[0]]) {
+  for (const s of [-1, 1]) windows.tribuneOculi.push({ x, z: s * wallOuterZ, y: 22.0, diameter: 3.0, terraceY: 19.5 });
 }
 // 後殿高窗與放射禮拜堂窗：放在相鄰頂點角度的中間
 for (let i = 0; i < APSE_VERTEX_ANGLES_DEG.length - 1; i++) {
@@ -339,7 +410,8 @@ const transeptFacade = (side) => ({
   z: side * TRANSEPT_FACADE_Z,
   x0: CROSSING_X0, x1: CROSSING_X1,
   gableApex: 47.0,
-  cornerTurrets: [CROSSING_X0, CROSSING_X1].map((x) => ({ x, z: side * TRANSEPT_FACADE_Z, size: 2.2, top: 40.0, pinnacleTip: 45.0 })),
+  // 照片：轉角小塔的尖頂高過山牆
+  cornerTurrets: [CROSSING_X0, CROSSING_X1].map((x) => ({ x, z: side * TRANSEPT_FACADE_Z, size: 2.2, top: 40.0, pinnacleTip: 52.0 })),
   portal: {
     name: side < 0 ? '修院門 Portail du Cloître' : '聖艾蒂安門 Portail Saint-Étienne',
     x: CROSSING_CX, openingWidth: 5.0, doorHeight: 6.2, openingApex: 11.0,
@@ -347,9 +419,9 @@ const transeptFacade = (side) => ({
     gable: { apex: 17.5, width: 9.6 },
     trumeauStatue: { height: 2.8, subject: side < 0 ? '聖母' : '聖艾蒂安' },
   },
-  claireVoie: { yBottom: 17.5, yTop: 19.5 }, // 玫瑰窗下的鏤空迴廊
+  claireVoie: { yBottom: 17.5, yTop: 19.5, lancets: 9 }, // 玫瑰窗下一排透光尖窗
   rose: { x: CROSSING_CX, y: 26.0, diameter: 12.9, petals: side < 0 ? 16 : 12 /* 示意 */ },
-  gableOculus: { x: CROSSING_CX, y: 39.0, diameter: 3.0 },
+  gableOculus: { x: CROSSING_CX, y: 40.5, diameter: 4.5 }, // 照片：山牆上的小玫瑰窗
   gableStatue: { x: CROSSING_CX, y: 47.0, height: 2.2, subject: side < 0 ? '十字架' : '聖艾蒂安' }, // 示意
 });
 
@@ -363,6 +435,9 @@ const roof = {
   pitchDeg: HEIGHTS.roofPitchDeg,
   material: 'lead',
   crest: { height: 0.6 }, // 屋脊鏤空鉛飾（crête）
+  eaveBalustrade: { height: 1.0 }, // 照片：高牆簷口有一圈石欄杆走道
+  // 照片：屋面上零星的小老虎窗（通風口）
+  dormers: [24, 38, 50, 84, 96].flatMap((x) => [-1, 1].map((s) => ({ x, side: s, y: 38.5, width: 1.0, height: 1.4 }))),
   segments: [
     { id: 'nave', axis: 'x', x0: NAVE_X0, x1: CROSSING_X0, westEnd: 'hiddenGable' }, // 山牆藏在 46 m 大迴廊後
     { id: 'crossing', axis: 'x', x0: CROSSING_X0, x1: CROSSING_X1 },
@@ -439,7 +514,7 @@ const cathedral = {
     grandGallery,
     chimeras: chimerasWithId,
     towers,
-    stairTurret,
+    stairTurrets,
     centerSectionTop: 46.0,
   },
 
@@ -479,6 +554,7 @@ const cathedral = {
   paleePiers,
   flyingButtresses,
   windows,
+  chapelGablets,
   gargoyles,
 
   // 詩班席北側的紅門
@@ -536,7 +612,11 @@ const parvis = {
   ].map((l) => ({ ...l, height: 4.2, style: 'parisCandelabra', lit: false })),
   benches: range(5).map((i) => ({ x: -110 + i * 18, z: 38.5, length: 2.0, facingDeg: -90 })),
   bollards: range(20).map((i) => ({ x: -126.5, z: -48 + i * 4.7, height: 0.8 })),
-  barrierAtFacade: { x: -6.0, z0: -19.0, z1: 19.0, height: 1.0, type: 'lowIronRail' }, // 示意
+  // 照片：門前一道黑色鐵欄杆，門口留開口
+  barrierAtFacade: {
+    x: -4.5, z0: -20.0, z1: 20.0, height: 1.3, type: 'ironRailing', spearTops: true,
+    openings: westPortals.map((p) => ({ z0: round(p.z - p.openingWidth / 2 - 0.5), z1: round(p.z + p.openingWidth / 2 + 0.5) })),
+  },
 };
 
 // -----------------------------------------------------------------------------
@@ -547,14 +627,22 @@ const surroundings = {
   seine: {
     // 南支流：水面在地面下約 8 m
     south: { x0: -260, x1: 300, z0: 58, z1: 110, waterY: -8.0 },
+    // 照片：島這側是石砌高牆直接入水；對岸有低處河岸步道
     quayWall: { z: 58, top: 0, bottom: -8.0, parapetHeight: 1.0 },
-    lowerQuay: { z0: 58, z1: 64, y: -6.5 }, // 河岸步道
+    leftBankQuayWall: { z: 110, top: 0, bottom: -8.0, parapetHeight: 1.0 },
+    lowerQuay: { z0: 102, z1: 110, y: -6.5 },
+    quayStairs: [{ x0: -24, x1: -18, z0: 58, z1: 61, from: 0, to: -6.5 }],
   },
   streets: [
     { id: 'rueDeLaCite', x0: -140, x1: -128, z0: -160, z1: 58 },
     { id: 'parvisNorthStreet', x0: -128, x1: 0, z0: -58, z1: -52 },
     { id: 'parvisSouthStreet', x0: -128, x1: 0, z0: 46, z1: 52 },
     { id: 'rueDuCloitre', x0: 0, x1: 140, z0: -40, z1: -30 },
+  ],
+  // 照片：聖母院正前方那座單拱石橋是雙倍橋（Pont au Double）
+  bridges: [
+    { id: 'pontAuDouble', x0: -10, x1: 10, z0: 58, z1: 110, deckY: 0.5, arches: 1, archRise: 6.0, parapetHeight: 1.0 },
+    { id: 'petitPont', x0: -142, x1: -126, z0: 58, z1: 110, deckY: 0.5, arches: 1, archRise: 5.0, parapetHeight: 1.0 },
   ],
   buildings: [
     { id: 'hotelDieu', x0: -126, x1: -16, z0: -120, z1: -58, eave: 20, ridge: 26, arcadedGround: true },
@@ -597,6 +685,31 @@ const sun = {
 };
 
 // -----------------------------------------------------------------------------
+// 鏡頭（70 秒）：關鍵點，依時間以平滑曲線（centripetal Catmull-Rom）內插
+// position = 相機位置，target = 注視點，fovDeg = 垂直視角
+// 路線：廣場遠景 → 走近中門 → 聖母門 → 升到國王廊 → 玫瑰窗 → 沉思者 →
+//       退到塞納河上空看南側受光的飛扶壁、南袖廊玫瑰窗與尖塔
+// -----------------------------------------------------------------------------
+const camera = {
+  durationSec: 70,
+  fps: 30,
+  resolution: [1920, 1080],
+  interpolation: 'centripetalCatmullRom',
+  keyframes: [
+    { t: 0, position: [-125, 1.7, 14], target: [0, 34, 0], fovDeg: 50, shot: '廣場西端遠景，整面西立面' },
+    { t: 10, position: [-80, 1.7, 8], target: [0, 26, 0], fovDeg: 46 },
+    { t: 20, position: [-30, 1.7, 2], target: [0, 10, 0], fovDeg: 44, shot: '走近最後審判門' },
+    { t: 27, position: [-12, 1.7, 0], target: [1.5, 9.5, 0], fovDeg: 40, shot: '門楣浮雕與門側使徒像' },
+    { t: 34, position: [-11, 2.5, -9], target: [1.0, 7.5, -TOWER_CENTER_Z], fovDeg: 40, shot: '橫移到聖母門' },
+    { t: 41, position: [-13, 18, -3], target: [0, 19.2, 0], fovDeg: 42, shot: '升到國王廊' },
+    { t: 48, position: [-14, 30, 3], target: [0, 30.5, 0], fovDeg: 42, shot: '西玫瑰窗與聖母、天使像' },
+    { t: 55, position: [-7, 47.5, -26], target: [0, 46.6, -FACADE_HALF_W], fovDeg: 38, shot: '沉思者 Le Stryge' },
+    { t: 62, position: [-40, 40, 70], target: [40, 34, 0], fovDeg: 45 },
+    { t: 70, position: [-22, 24, 112], target: [55, 38, 0], fovDeg: 45, shot: '塞納河上空：南側飛扶壁、南袖廊玫瑰窗、尖塔' },
+  ],
+};
+
+// -----------------------------------------------------------------------------
 // 匯出
 // -----------------------------------------------------------------------------
 function deepFreeze(o) {
@@ -615,10 +728,10 @@ export const LAYOUT = deepFreeze({
     origin: '西立面中央門門檻中心，地面',
     axisAzimuthDeg: AXIS_AZIMUTH_DEG,
     trueNorth: compassToLocal(0), // 真北在本地座標的方向
-    video: { durationSec: 70 },
     rules: '不使用任何外部 3D 模型、貼圖或照片，全部程式生成',
   },
   sun,
+  camera,
   cathedral,
   parvis,
   surroundings,

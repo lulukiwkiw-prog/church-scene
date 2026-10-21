@@ -53,7 +53,11 @@ for (const t of W.towers) rect(t.x0, t.x1, t.z0, t.z1, 'fill="#b5a782" stroke="#
 rect(W.x0, W.x1, -6, 6, 'fill="#c2b48e" stroke="#4a4234"');
 for (const b of W.buttresses) rect(-b.projection, 0, b.z - b.width / 2, b.z + b.width / 2, 'fill="#4a4234"');
 for (const p of W.portals) poly([[0, p.z - p.outerWidth / 2], [p.splayDepth, p.z - p.openingWidth / 2], [p.splayDepth, p.z + p.openingWidth / 2], [0, p.z + p.outerWidth / 2]], 'fill="#f3efe4" stroke="#4a4234"');
-circ(W.stairTurret.x, W.stairTurret.z, W.stairTurret.radius, 'fill="#9c8e6a" stroke="#4a4234"');
+for (const t of W.stairTurrets) circ(t.x, t.z, t.radius, 'fill="#9c8e6a" stroke="#4a4234"');
+// 鏡頭路線
+const ks = LAYOUT.camera.keyframes;
+for (let i = 0; i < ks.length - 1; i++) line([ks[i].position[0], ks[i].position[2]], [ks[i + 1].position[0], ks[i + 1].position[2]], 'stroke="#c0392b" stroke-width="1.5" stroke-dasharray="5 3"');
+for (const k of ks) { circ(k.position[0], k.position[2], 1.0, 'fill="#c0392b"'); text(k.position[0] + 2, k.position[2] - 1.5, `${k.t}s`, 9, 'start'); }
 for (const b of C.buttressPiers) {
   const rot = b.rotationDeg ?? (b.z < 0 ? -90 : 90);
   out.push(`<rect x="${f(-b.depth * PS / 2)}" y="${f(-b.width * PS / 2)}" width="${f(b.depth * PS)}" height="${f(b.width * PS)}" fill="#4a4234" transform="translate(${px(b.x)} ${pz(b.z)}) rotate(${rot})"/>`);
@@ -117,10 +121,11 @@ const rt = W.roseTier; erect(-W.width / 2, W.width / 2, rt.terrace.y, rt.terrace
 ecirc(rt.westRose.z, rt.westRose.y, rt.westRose.diameter / 2, 'fill="#4d5a6e" stroke="#4a4234"');
 ecirc(rt.westRose.z, rt.westRose.y, rt.westRose.diameter / 4, 'fill="none" stroke="#c8bea3"');
 for (const w of rt.towerWindows) arch(w.z, w.width, w.sill + w.height * 0.6, w.sill + w.height, 'fill="#6e6553" stroke="#4a4234"', w.sill);
+for (const w of rt.wallRosettes) ecirc(w.z, w.y, w.diameter / 2, 'fill="none" stroke="#4a4234"');
 for (const s of rt.statues) erect(s.z - 0.5, s.z + 0.5, s.y, s.y + s.height, 'fill="#8c8270"');
 const gg = W.grandGallery;
 for (const sct of gg.sections) {
-  const n2 = gg.archesPerSection[sct.id], w = (sct.z1 - sct.z0) / n2;
+  const n2 = gg.baysPerSection[sct.id] * gg.lancetsPerBay, w = (sct.z1 - sct.z0) / n2;
   for (let i = 0; i < n2; i++) erect(sct.z0 + i * w + 0.25, sct.z0 + (i + 1) * w - 0.25, gg.yBottom + 0.5, gg.arcadeTop - 0.5, 'fill="#5f6b78"');
 }
 erect(-W.width / 2, W.width / 2, gg.arcadeTop, gg.balustradeTop, 'fill="#c8bea3" stroke="#4a4234"');
