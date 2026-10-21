@@ -159,10 +159,12 @@ function jambStatues(p, perSide, baseY, height) {
     for (let i = 0; i < perSide; i++) {
       const t = (i + 0.5) / perSide; // 0 = 外緣（x=0），1 = 門洞內緣（x=splayDepth）
       const halfW = p.outerWidth / 2 + (p.openingWidth / 2 - p.outerWidth / 2) * t;
+      // 像的中心從斜面往門洞內側（往前、往門軸）推 0.35 m，才不會嵌進牆
+      const dz = (p.outerWidth - p.openingWidth) / 2, L = Math.hypot(p.splayDepth, dz);
       out.push({
-        x: round(t * p.splayDepth - 0.3),
+        x: round(t * p.splayDepth - 0.35 * dz / L),
         y: baseY,
-        z: round(p.z + side * (halfW + 0.35)),
+        z: round(p.z + side * (halfW - 0.35 * p.splayDepth / L)),
         height,
         facingDeg: side < 0 ? 45 : -45, // 相對 -X（面向廣場）往門洞中心轉
       });
@@ -191,7 +193,7 @@ const westPortals = [
     openingWidth: 4.4, doorHeight: 5.0, openingApex: 8.9,
     outerWidth: 9.0, outerApex: 12.0, splayDepth: 2.8,
     archivolts: 4, jambStatuesPerSide: 4, trumeauSubject: '聖母子',
-    tympanumRegisters: 3, tympanumBands: [0.9, 1.1], gable: { apex: 14.4, width: 9.4 }, // 只有聖母門上方有三角楣
+    tympanumRegisters: 3, tympanumBands: [0.9, 1.1], gable: { apex: 14.4, width: 10.2 }, // 只有聖母門上方有三角楣
     doors: { leaves: 2, ironwork: 'scrolls' }, // 兩側門：滿版鍛鐵捲花鉸鏈
   }),
   portal({
@@ -242,7 +244,7 @@ const roseTier = {
     lancetWidth: 2.2, lancetHeight: 7.2, oculusDiameter: 2.8, oculusY: 33.2,
   })),
   // 照片：拱肩牆面上的三葉形盲飾圓章
-  wallRosettes: [-19.0, -8.5, -5.0, 5.0, 8.5, 19.0].map((z) => ({ x: -0.05, y: 36.2, z, diameter: 1.8, lobes: 3 })),
+  wallRosettes: [-16.95, -9.55, -5.0, 5.0, 9.55, 16.95] /* 避開扶壁 */.map((z) => ({ x: -0.05, y: 36.2, z, diameter: 1.8, lobes: 3 })),
   statues: [
     { id: 'virgin', subject: '聖母子', x: -0.8, y: 23.5, z: 0, height: 4.0 },
     { id: 'angelN', subject: '天使', x: -0.8, y: 23.5, z: -2.6, height: 3.2 },

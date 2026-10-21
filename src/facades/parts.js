@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { pointedArch } from '../../layout.js';
 import {
   PI, T, S, Ry, Rx, mul, plateM, sweep, arcPts, archBand, ringBand, archPts, cuspedArchPts, foilPts, circlePts,
-  plate, shapeOf, extrude, box, colonnette, prep, mergeGeometries, crocket, finial,
+  plate, shapeOf, extrude, box, colonnette, prep, mergeGeometries, crocket, finial, applyM,
 } from './kit.js';
 
 // -----------------------------------------------------------------------------
@@ -54,7 +54,7 @@ export function rose(batch, M, o) {
   const r1 = R * 0.53, aH1 = R * 0.1, band1 = R * 0.06;
   const r2 = R * 0.965, aH2 = R * 0.1;
 
-  if (glass) add('glass', new THREE.CircleGeometry(R + 0.03, 72).applyMatrix4(plateM(x0 + t + 0.03)), null);
+  if (glass) add('glass', applyM(prep(new THREE.CircleGeometry(R + 0.03, 72), null, 'keep'), plateM(x0 + t + 0.03)), null);
   // 中心小圓
   add('carved', plate(circlePts(oculusR + R * 0.06, 48), [foilPts(Math.min(nIn, 12), oculusR, 0.22, { seg: 96 })], t, x0));
   add('carved', plate(foilPts(Math.min(nIn, 12), oculusR * 0.55, 0.3, { seg: 48 }), [circlePts(oculusR * 0.4, 24)], t * 0.6, x0 + t * 0.2));
@@ -189,10 +189,9 @@ export function balustradeModule(L, H, style = 'arcade', th = 0.2) {
   g.translate(0, 0, -th / 2);
   // 底座與壓頂（壓頂兩側略出挑、上緣倒角）
   const coping = extrude(shapeOf([[-th / 2 - 0.05, 0], [th / 2 + 0.05, 0], [th / 2 + 0.05, cop * 0.55], [th / 2 - 0.02, cop], [-th / 2 + 0.02, cop], [-th / 2 - 0.05, cop * 0.55]]), L);
-  coping.applyMatrix4(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0)));
-  coping.translate(0, y1, 0);
+  const copingG = applyM(prep(coping, null, 'keep'), new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0)).setPosition(0, y1, 0));
   const plinth = box(L, base, th + 0.08, 0, 0, -th / 2 - 0.04);
-  const out = mergeGeometries([prep(g), prep(coping), prep(plinth)], false);
+  const out = mergeGeometries([prep(g), prep(copingG), prep(plinth)], false);
   balCache.set(key, out);
   return out;
 }

@@ -406,7 +406,8 @@ export function buildWestFront(C, rng) {
     // 華蓋
     lower.add('carved', canopyGeo(0.55, ns.canopy.height), T(ns.x, top + 0.03, ns.z));
     // 像後的淺龕背板（三葉尖拱框）
-    lower.add('carved', plate(cuspedArchPts(1.15, top - 0.2, { n: 10, yBottom: ns.y, cusp: 0.08 }), [], 0.06, xf - 0.06), T(0, 0, ns.z));
+    const nsa = pointedArch(1.2, top + 0.15);
+    lower.add('carved', archBand([arcPts(0, 0, 0.07, PI * 0.5, PI * 1.5, 5)], { span: 1.2, spring: nsa.springing, x0: xf - 0.02, yStart: ns.y - 0.2, n: 16 }), T(0, 0, ns.z), 'keep');
   }
 
   return [lower, roseB, gal, tow];

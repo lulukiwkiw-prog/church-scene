@@ -52,6 +52,17 @@ function boxUV(g) {
   }
 }
 
+/** 鏡射矩陣（行列式 < 0）會反轉三角形繞向；法線已由法線矩陣正確轉換，所以把繞向翻回來 */
+export function applyM(g, m) {
+  g.applyMatrix4(m);
+  if (m.determinant() < 0) {
+    const ix = g.index.array;
+    for (let i = 0; i < ix.length; i += 3) { const t = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = t; }
+    g.index.needsUpdate = true;
+  }
+  return g;
+}
+
 export function prep(src, matrix, uvMode = 'box') {
   const g = new THREE.BufferGeometry();
   const pos = src.getAttribute('position');
@@ -63,7 +74,7 @@ export function prep(src, matrix, uvMode = 'box') {
   if (src.index) g.setIndex(new THREE.BufferAttribute(Uint32Array.from(src.index.array), 1));
   else g.setIndex(new THREE.BufferAttribute(Uint32Array.from({ length: pos.count }, (_, i) => i), 1));
   if (!nrm) g.computeVertexNormals();
-  if (matrix) g.applyMatrix4(matrix);
+  if (matrix) applyM(g, matrix);
   if (uvMode === 'box') boxUV(g);
   return g;
 }
@@ -179,7 +190,7 @@ export function archBand(strips, { span, spring, x0 = 0, yStart = null, R = null
     parts.push(sweep(strips, 2, (i, r, d) => [x0 + d, i === 0 ? y0 : spring, -(span / 2 + r)]));
   }
   const half = parts.length > 1 ? mergeGeometries(parts, false) : left;
-  const right = half.clone().applyMatrix4(mirrorZ());
+  const right = applyM(half.clone(), mirrorZ());
   return mergeGeometries([half, right], false);
 }
 
@@ -310,7 +321,7 @@ export function extrude(shape, depth) {
 }
 /** 平板：輪廓 + 孔，厚 depth，放在牆面座標深度 x0 起 */
 export function plate(outer, holes, depth, x0 = 0) {
-  return extrude(shapeOf(outer, holes), depth).applyMatrix4(plateM(x0));
+  return applyM(prep(extrude(shapeOf(outer, holes), depth), null, 'keep'), plateM(x0));
 }
 
 // -----------------------------------------------------------------------------
@@ -356,11 +367,12 @@ let crocketGeo = null;
 export function crocket() {
   if (crocketGeo) return crocketGeo;
   const leaf = new THREE.SphereGeometry(1, 6, 4);
-  leaf.scale(0.09, 0.07, 0.11);
-  leaf.translate(0.06, 0.1, 0);
+  leaf.scale(0.05, 0.11, 0.12);
+  leaf.rotateZ(-0.5);
+  leaf.translate(0.05, 0.1, 0);
   const curl = new THREE.SphereGeometry(1, 5, 3);
-  curl.scale(0.05, 0.05, 0.06);
-  curl.translate(0.13, 0.16, 0);
+  curl.scale(0.06, 0.045, 0.08);
+  curl.translate(0.12, 0.17, 0);
   const stem = cyl(0.035, 0.03, 0.12, 5, 0);
   crocketGeo = mergeGeometries([prep(leaf), prep(curl), prep(stem)], false);
   return crocketGeo;

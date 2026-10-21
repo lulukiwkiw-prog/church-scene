@@ -86,11 +86,11 @@ export function canopyGeo(R = 0.36, H = 0.6) {
     tri.applyMatrix4(mul(Ry(-a + PI / 2), T(0, 0, ap - 0.01)));
     parts.push(tri);
     // 小尖塔
-    const pin = new THREE.ConeGeometry(R * 0.09, H * 0.5, 4); pin.translate(0, H * 0.78, 0);
+    const pin = new THREE.ConeGeometry(R * 0.06, H * 0.32, 4); pin.translate(0, H * 0.64, 0);
     pin.applyMatrix4(mul(Ry(-a), T(R * 0.95, 0, 0)));
     parts.push(pin);
   }
-  const roof = new THREE.ConeGeometry(R * 0.8, H * 0.55, 6); roof.translate(0, H * 0.8, 0); parts.push(roof);
+  const roof = new THREE.ConeGeometry(R * 0.85, H * 0.35, 6); roof.translate(0, H * 0.7, 0); parts.push(roof);
   const g = mergeGeometries(parts.map((p) => prep(p)), false);
   // 底面三葉形拱腹不做；整體朝 -X 為正面，無方向性
   canopyCache.set(key, g);
@@ -389,7 +389,7 @@ export function buildPortal(batch, P, M, opt) {
   const tym = tympanumRegisters(P);
   const oa = pointedArch(P.openingWidth, P.openingApex);
   const tx = tym.x;
-  add('carved', plate(archPts(P.openingWidth + 0.1, oa.springing, { n: 36, yBottom: P.doorHeight - 0.2, R: P.openingWidth + 0.1 }), [], 0.4, tx + 0.1));
+  // 門楣背板 = 結構洞底的牆面（x = splayDepth），浮雕歸雕刻模組
   const bandProf = (dep, hh) => [
     [[0.12, -hh / 2], [-dep + 0.03, -hh / 2]],
     arcPts(-dep + 0.03, -hh / 2 + 0.03, 0.03, 1.5 * PI, PI, 3),
@@ -411,7 +411,9 @@ export function buildPortal(batch, P, M, opt) {
   }
 
   // ---------------- 門中柱 ----------------
-  const tsx = P.trumeauStatue && P.trumeauStatue.x !== undefined ? P.trumeauStatue.x : splay - 0.5;
+  const TS = P.trumeauStatue;
+  // 西門：x = 深度；袖廊門：x = 世界橫向位置、depth = 深度
+  const tsx = TS ? (TS.depth !== undefined ? TS.depth : TS.x !== undefined ? TS.x : splay - 0.5) : splay - 0.5;
   const tsy = P.trumeauStatue && P.trumeauStatue.y !== undefined ? P.trumeauStatue.y : 1.4;
   const tsh = P.trumeauStatue ? P.trumeauStatue.height : 0;
   const trW = 0.72;
@@ -433,7 +435,7 @@ export function buildPortal(batch, P, M, opt) {
   // ---------------- 木門與鍛鐵 ----------------
   const doors = P.doors || { leaves: 2, ironwork: 'plain' };
   const leafH = P.doorHeight - 0.2;
-  const dx = tx + 0.3;
+  const dx = tx - 0.13; // 結構洞底在 x = splayDepth，門扇貼在它前面
   const gap = P.trumeauStatue ? trW / 2 : 0.01;
   const leafW = (P.openingWidth - 2 * gap) / doors.leaves * (doors.leaves === 2 ? 1 : 1);
   for (let l = 0; l < doors.leaves; l++) {
@@ -455,8 +457,5 @@ export function buildPortal(batch, P, M, opt) {
       batch.addMany('iron', new THREE.SphereGeometry(0.025, 5, 3), studs.map((m) => mul(M, m)));
     }
   }
-  // 門洞內側（門扇背後）收邊
-  add('carved', box(0.3, P.doorHeight, 0.25, tx + 0.1, 0, -open2 - 0.12));
-  add('carved', box(0.3, P.doorHeight, 0.25, tx + 0.1, 0, open2 - 0.13));
   return { capY };
 }
