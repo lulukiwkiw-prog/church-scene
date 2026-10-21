@@ -644,7 +644,7 @@ const parvis = {
 // 周邊環境（只是量體，不做細節）
 // -----------------------------------------------------------------------------
 const surroundings = {
-  island: { x0: -200, x1: 240, z0: -160, z1: 58, y: 0 },
+  island: { x0: -232, x1: 240, z0: -160, z1: 58, y: 0 },
   seine: {
     // 南支流：水面在地面下約 8 m
     south: { x0: -260, x1: 300, z0: 58, z1: 110, waterY: -8.0 },
@@ -652,7 +652,7 @@ const surroundings = {
     quayWall: { z: 58, top: 0, bottom: -8.0, parapetHeight: 1.0 },
     leftBankQuayWall: { z: 110, top: 0, bottom: -8.0, parapetHeight: 1.0 },
     lowerQuay: { z0: 102, z1: 110, y: -6.5 },
-    quayStairs: [{ x0: -24, x1: -18, z0: 58, z1: 61, from: 0, to: -6.5 }],
+    quayStairs: [{ x0: -32, x1: -18, z0: 58, z1: 61, from: 0, to: -6.5 }], // 14 m 長，踏面約 0.3 m
   },
   streets: [
     { id: 'rueDeLaCite', x0: -140, x1: -128, z0: -160, z1: 58 },
