@@ -137,7 +137,7 @@ if (!stills && !args['no-video']) {
     writeFileSync(list, have.map((f) => `file '${framePath(f)}'\nduration ${dur}`).join('\n') + `\nfile '${framePath(have[have.length - 1])}'\n`);
     mkdirSync(dirname(OUT), { recursive: true });
     const ff = ['-y', '-loglevel', 'error', '-f', 'concat', '-safe', '0', '-i', list,
-      '-r', String(FPS), '-c:v', 'libx264', '-preset', String(args.preset || 'slow'), '-crf', String(args.crf || 16),
+      '-t', String((TO - FROM) / FPS), '-r', String(FPS), '-c:v', 'libx264', '-preset', String(args.preset || 'slow'), '-crf', String(args.crf || 16),
       '-pix_fmt', 'yuv420p', '-movflags', '+faststart', OUT];
     console.log(`ffmpeg ${ff.join(' ')}`);
     const r = spawnSync('ffmpeg', ff, { stdio: 'inherit' });
