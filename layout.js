@@ -464,7 +464,7 @@ const spire = {
     { id: 'rooster', y0: 95.4, y1: 96.0 }, // 銅公雞，總高 96 m
   ],
   top: 96.0,
-  material: 'leadOverOak',
+  material: 'leadRoof', // 鉛皮包橡木骨架
 };
 
 // 四組銅像沿四條屋脊往下排（每組 3 使徒 + 1 福音書象徵在最低處）
@@ -481,7 +481,7 @@ const apostleGroups = [
     return {
       kind: k < 3 ? 'apostle' : 'evangelistSymbol',
       x: round(CROSSING_CX + g.dir[0] * d),
-      y: round(HEIGHTS.ridge + 1.6 - k * 0.8), // 階梯狀台座頂
+      y: round(HEIGHTS.ridge + 2.0 - k * 0.6), // 階梯狀台座頂（最低一階仍高於屋脊）
       z: round(g.dir[1] * d),
       height: k < 3 ? 3.4 : 2.2,
       facingSpire: gi === 3 && k === 0, // 示意：南組最上方一尊回頭望尖塔（聖多馬）
@@ -562,7 +562,7 @@ const cathedral = {
 
   // 維奧萊-勒-杜克所建的聖器室（南側，以廊道接詩班席）
   sacristy: {
-    x0: 82.0, x1: 102.0, z0: 27.0, z1: 41.0, eave: 12.0, ridge: 17.0,
+    x0: 82.0, x1: 102.0, z0: 27.0, z1: 41.0, eave: 12.0, ridge: 17.0, roofType: 'gable', ridgeAxis: 'x',
     passage: { x0: 88.0, x1: 92.0, z0: SECTION.culeeOuterZ, z1: 27.0, height: 6.0 },
   },
 };
