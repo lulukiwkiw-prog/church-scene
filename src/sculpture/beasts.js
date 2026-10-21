@@ -219,7 +219,8 @@ export function horse(M, o = {}) {
   ];
   for (const [s, z, pts] of legs) {
     const P = pts.map(([x, y, zz]) => [s * 0.1 + x, y, z + zz]);
-    M.tube(P, [0.075, 0.045, 0.04], 8, 10, 0.9);
+    M.tube(P, [0.11, 0.06, 0.05], 10, 10, 0.9);
+    M.ellipsoid(P[0][0], P[0][1] - 0.02, P[0][2], 0.1, 0.2, 0.15, 10, 6, 0.9);
   }
   // 蹄（另外定位）
   for (const [s, z, pts] of legs) {

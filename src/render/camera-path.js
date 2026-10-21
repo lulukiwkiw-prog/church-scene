@@ -87,7 +87,7 @@ export function createCameraPath(cam) {
   const fov = monotoneCubic(times, kfs.map((k) => k.fovDeg), 0, 0);
   const shotAt = (t) => {
     let s = '';
-    for (const k of kfs) if (k.t <= t + 1e-9 && k.shot) s = k.shot;
+    for (const k of kfs) if (k.t <= t + 0.5 && k.shot) s = k.shot; // 提前 0.5 秒切到下一個鏡頭的名稱
     return s;
   };
   return {

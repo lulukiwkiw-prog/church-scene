@@ -111,7 +111,7 @@ export function build({ layout, materials, variant, rng }) {
   // ======================= 國王廊 =======================
   const kingsM = new Mesher();
   WF.galleryOfKings.statues.forEach((k, i) => {
-    const Sp = S('king', `kings/${i}`, { lod: 1 });
+    const Sp = S('king', `kings/${i}`, { lod: 2 });
     fig(kingsM, Sp, [k.x, k.y, k.z], [-1, 0], k.height);
   });
   out(kingsM, stone, 'sculpture-kings');

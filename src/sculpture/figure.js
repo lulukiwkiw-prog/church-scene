@@ -182,8 +182,8 @@ function sleeveDrape(M, el, wr, s, R) {
   m.setPosition(el[0], el[1], el[2]);
   M.push(m);
   const L = Lh, dy = wr[1] - el[1];
-  const pts = [[-0.01, 0.01], [L * 0.5, dy * 0.5 + 0.015], [L, dy + 0.01], [L * 0.97, dy - 0.12], [L * 0.85, dy - 0.15], [L * 0.7, dy - 0.19], [L * 0.5, dy - 0.21], [L * 0.3, dy - 0.2], [L * 0.12, dy - 0.17], [0.0, -0.16]];
-  M.extrude(pts, 0.03, 0.85, 0.6);
+  const pts = [[-0.01, 0.01], [L * 0.5, dy * 0.5 + 0.015], [L, dy + 0.01], [L * 0.97, dy - 0.07], [L * 0.8, dy - 0.1], [L * 0.6, dy - 0.13], [L * 0.4, dy - 0.12], [L * 0.2, dy - 0.1], [0.0, -0.08]];
+  M.extrude(pts, 0.045, 0.8, 0.6);
   M.pop();
 }
 
@@ -293,15 +293,15 @@ function headInner(M, H, R) {
     // 眼窩
     let eye = 0;
     for (const e of [-0.36, 0.36]) eye += Math.exp(-(((dx - e) ** 2) + ((dy - 0.06) ** 2)) / 0.02);
-    k -= 0.16 * fW * eye; c -= 0.5 * fW * eye;
+    k -= 0.2 * fW * eye; c -= 0.3 * fW * eye;
     // 眉弓
     k += 0.05 * fW * Math.exp(-(((dy - 0.22) ** 2) / 0.006)) * smooth(0.7, 0.3, Math.abs(dx));
     // 鼻
     const nose = Math.exp(-(dx * dx) / 0.008) * clamp((0.14 - dy) / 0.38) * smooth(-0.34, -0.22, dy);
-    k += 0.3 * nose * fW;
+    k += 0.36 * nose * fW;
     // 口
     const mouth = Math.exp(-((dx * dx) / 0.03 + ((dy + 0.43) ** 2) / 0.0018));
-    k -= 0.05 * mouth * fW; c -= 0.35 * mouth * fW;
+    k -= 0.05 * mouth * fW; c -= 0.15 * mouth * fW;
     // 下巴收窄
     const jaw = smooth(0.0, -0.85, dy);
     let sx = 1 - 0.22 * jaw;
@@ -324,7 +324,7 @@ function headInner(M, H, R) {
     if (bald) k += (1 - faceMask) * smooth(-0.7, -0.3, dy) * smooth(0.4, 0.2, dy) * 0.06;
     // 鬍子
     if (H.beard) {
-      const bm = smooth(-0.22, -0.55, dy) * smooth(-0.3, 0.3, dz);
+      const bm = smooth(-0.32, -0.62, dy) * smooth(0.0, 0.5, dz);
       const curls = 0.04 * Math.abs(Math.sin(dx * 18) * Math.sin(dy * 20 + dx * 3));
       k += bm * (0.12 + curls * 1.2) - 0.05 * mouth * fW;
       yo -= 0.04 * bm * smooth(-0.3, -0.9, dy) * smooth(-0.2, 0.5, dz);
@@ -576,14 +576,15 @@ function wings(M, S, shY, R) {
   }
   for (const s of [-1, 1]) {
     // 讓翅膀外緣（局部 +x）朝 (±0.45, 0, -0.9)
-    const ang = Math.atan2(-0.9, s * 0.45); // 方向角
+    const ang = Math.atan2(-0.55, s * 0.85); // 方向角
     const X = [Math.cos(ang), 0, Math.sin(ang)];
     const Z = [-X[2] * s, 0, X[0] * s];
     const mm = new THREE.Matrix4().makeBasis(new THREE.Vector3(...X), new THREE.Vector3(0, 1, 0), new THREE.Vector3(...Z));
-    mm.setPosition(s * 0.06, shY - 0.02, -0.06);
+    mm.setPosition(s * 0.06, shY - 0.02, -0.07);
     M.push(mm);
+    if (!bat) M.push(scaleM(1.25));
     M.extrude(pts, bat ? 0.012 : 0.022, 0.9, 0.75);
-    if (!bat) for (let k = 0; k < 3; k++) M.box(0.06 + k * 0.025, -0.05 - k * 0.07, 0.012, 0.005, 0.3 - k * 0.06, 0.006, 0.7);
+    if (!bat) { for (let k = 0; k < 3; k++) M.box(0.06 + k * 0.025, -0.05 - k * 0.07, 0.012, 0.005, 0.3 - k * 0.06, 0.006, 0.7); M.pop(); }
     M.pop();
   }
 }
