@@ -1,0 +1,9 @@
+{
+  "name": "church-scene",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node tools/check-layout.mjs",
+    "plan": "node tools/plan.mjs"
+  }
+}
