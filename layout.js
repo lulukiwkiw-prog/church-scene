@@ -178,6 +178,8 @@ function portal(def) {
   p.socle = { height: 1.9, medallionRows: 2, medallionShape: 'quatrefoil' };
   // 照片：每座門的拱圈外層都有一圈連續捲葉飾
   p.outerCrockets = true;
+  // 拱圈小坐像從門側像頂上方 0.75 m 開始排（立面線腳與雕刻共用）
+  p.archivoltStartY = round(1.9 + 2.6 + 0.75);
   p.trumeauStatue = { x: round(p.splayDepth - 0.5), y: 1.6, z: p.z, height: 3.0, subject: def.trumeauSubject };
   return p;
 }
@@ -385,7 +387,8 @@ for (const t of towers) {
     for (const z of [t.z0, t.z1]) {
       const dx = x === 0 ? -1 : 1;
       const dz = Math.abs(z) === FACADE_HALF_W ? Math.sign(z) : 0; // 外側轉角斜向朝外
-      gargoyles.push({ x, y: 44.3, z, dir: [dx, 0, dz], length: 1.8, source: 'tower' });
+      const n = Math.hypot(dx, dz);
+      gargoyles.push({ x, y: 44.3, z, dir: [round(dx / n), 0, round(dz / n)], length: 1.8, source: 'tower' });
     }
   }
 }
@@ -435,7 +438,7 @@ const transeptFacade = (side) => ({
     x: CROSSING_CX, openingWidth: 5.0, doorHeight: 6.2, openingApex: 11.0,
     outerWidth: 9.0, outerApex: 14.0, splayDepth: 2.2, archivolts: 4,
     gable: { apex: 17.5, width: 9.6 },
-    trumeauStatue: { height: 2.8, subject: side < 0 ? '聖母' : '聖艾蒂安' },
+    trumeauStatue: { x: CROSSING_CX, y: 1.6, depth: 1.7 /* = splayDepth − 0.5 */, height: 2.8, subject: side < 0 ? '聖母' : '聖艾蒂安' },
   },
   claireVoie: { yBottom: 17.5, yTop: 19.5, lancets: 9 }, // 玫瑰窗下一排透光尖窗
   rose: { x: CROSSING_CX, y: 26.0, diameter: 12.9, petals: side < 0 ? 16 : 12 /* 示意 */ },
