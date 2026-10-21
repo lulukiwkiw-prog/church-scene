@@ -1,5 +1,5 @@
 // =============================================================================
-// layout.js — 巴黎聖母院（2019 年火災前）清晨場景平面圖
+// layout.js — 巴黎聖母院（2019 年火災前）春分傍晚場景平面圖
 // -----------------------------------------------------------------------------
 // 這是整個專案「唯一」的座標來源。之後所有 three.js 程式（建築、雕刻、廣場、
 // 燈光、攝影機）都只能 import 這份檔案讀位置與尺寸，不得在別處寫死座標。
@@ -524,11 +524,11 @@ const parvis = {
     group: { height: 5.2, material: 'bronze', figures: ['查理曼（騎馬）', '羅蘭', '奧利維耶'] },
   },
   trees: [
-    // 南緣一排行道樹（法國梧桐），12 月為落葉狀態
-    ...range(10).map((i) => ({ x: -118 + i * 9, z: 41.0, species: 'plane', height: 15, canopyRadius: 4.5, leafless: true })),
+    // 南緣一排行道樹（法國梧桐），3 月剛冒新芽：枝幹清楚、樹冠稀疏淡綠
+    ...range(10).map((i) => ({ x: -118 + i * 9, z: 41.0, species: 'plane', height: 15, canopyRadius: 4.5, foliage: 'budding' })),
     // 查理曼像四周
-    { x: -24, z: 30, species: 'plane', height: 13, canopyRadius: 4, leafless: true },
-    { x: -6, z: 30, species: 'plane', height: 13, canopyRadius: 4, leafless: true },
+    { x: -24, z: 30, species: 'plane', height: 13, canopyRadius: 4, foliage: 'budding' },
+    { x: -6, z: 30, species: 'plane', height: 13, canopyRadius: 4, foliage: 'budding' },
   ],
   lamps: [
     ...range(8).map((i) => ({ x: -120 + i * 16, z: -48.5 })),
@@ -566,14 +566,14 @@ const surroundings = {
   ],
   gardens: [
     // 教堂南側沿河的花園
-    { id: 'southGarden', x0: 12, x1: 128, z0: 44, z1: 56, trees: range(12).map((i) => ({ x: 18 + i * 9.5, z: 50, height: 14, canopyRadius: 4.5, leafless: true })) },
+    { id: 'southGarden', x0: 12, x1: 128, z0: 44, z1: 56, trees: range(12).map((i) => ({ x: 18 + i * 9.5, z: 50, height: 14, canopyRadius: 4.5, foliage: 'budding' })) },
     // 後殿東側的若望二十三世廣場
     {
       id: 'squareJeanXXIII', x0: 130, x1: 180, z0: -40, z1: 52,
       fence: { height: 2.2 },
       fountain: { x: 152, z: 4, diameter: 6, height: 4.5, style: 'gothicRevival' },
       trees: [[138, -30], [150, -32], [164, -28], [174, -14], [176, 10], [172, 32], [158, 42], [142, 40], [136, 20], [136, -10]]
-        .map(([x, z]) => ({ x, z, height: 16, canopyRadius: 5, leafless: true })),
+        .map(([x, z]) => ({ x, z, height: 16, canopyRadius: 5, foliage: 'budding' })),
     },
   ],
 };
@@ -581,10 +581,11 @@ const surroundings = {
 // -----------------------------------------------------------------------------
 // 太陽與時間
 // -----------------------------------------------------------------------------
-// 東南、仰角約 7°。在巴黎這組太陽位置約出現在冬至前後上午 09:40（CET）。
-// 注意：太陽在教堂後方偏南 → 西立面背光，南側袖廊與南側飛扶壁迎光。
-const SUN_AZIMUTH_DEG = 135;
-const SUN_ELEVATION_DEG = 7;
+// 西南、仰角 19°：巴黎春分前後約 17:00（CET）的太陽位置。
+// 西立面法線方位約 293°，太陽從左前方（南側）約 46° 斜照，
+// 門洞斜面、國王廊、玫瑰窗前雕像都有明暗立體感；南側牆面也受光。
+const SUN_AZIMUTH_DEG = 247;
+const SUN_ELEVATION_DEG = 19;
 const sun = {
   azimuthDeg: SUN_AZIMUTH_DEG,
   elevationDeg: SUN_ELEVATION_DEG,
@@ -592,7 +593,7 @@ const sun = {
   // 平行光放置位置：以交叉部為目標，沿 direction 退 400 m
   target: [CROSSING_CX, 0, 0],
   distance: 400,
-  season: '冬至前後，約 09:40 CET，樹木落葉',
+  season: '春分前後，約 17:00 CET，樹木剛冒新芽',
 };
 
 // -----------------------------------------------------------------------------
@@ -608,7 +609,7 @@ function deepFreeze(o) {
 
 export const LAYOUT = deepFreeze({
   meta: {
-    title: 'Notre-Dame de Paris（2019 年前）清晨',
+    title: 'Notre-Dame de Paris（2019 年前）春分傍晚',
     units: 'm',
     axes: { x: '禮儀東（往後殿）', y: '上', z: '禮儀南（塞納河側）' },
     origin: '西立面中央門門檻中心，地面',

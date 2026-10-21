@@ -83,7 +83,7 @@ const arrow = (x, z, d, len, color, label) => {
 const n = LAYOUT.meta.trueNorth;
 arrow(-130, -55, n, 12, '#222', 'N');
 const sd = Math.hypot(sun.direction[0], sun.direction[2]);
-arrow(140, 45, [sun.direction[0] / sd, 0, sun.direction[2] / sd], 18, '#d98c1f', `太陽 ${sun.azimuthDeg}° / ${sun.elevationDeg}°`);
+arrow(-40, 44, [sun.direction[0] / sd, 0, sun.direction[2] / sd], 18, '#d98c1f', `太陽 ${sun.azimuthDeg}° / ${sun.elevationDeg}°`);
 // 比例尺 50 m
 line([-140, 62], [-90, 62], 'stroke="#222" stroke-width="2"'); text(-115, 60, '50 m', 10);
 out.push(`</g>`);

@@ -54,11 +54,18 @@ for (const t of P.trees) assert(inParvis(t.x, t.z), `樹 ${t.x},${t.z}`);
 for (const l of P.lamps) assert(inParvis(l.x, l.z));
 assert(inParvis(P.pointZero.x, P.pointZero.z) && inParvis(P.charlemagne.x, P.charlemagne.z));
 
-// 太陽：東南、仰角 7°、單位向量；應在教堂後方（+X）偏南（+Z）
+// 太陽：西南、仰角 19°、單位向量；要照得到西立面（-X 側）且從南側（+Z）斜照
 const d = sun.direction;
 assert(near(Math.hypot(...d), 1, 0.01));
-assert(near(Math.asin(d[1]) * 180 / Math.PI, 7, 0.1));
-assert(d[0] > 0 && d[2] > 0);
+assert(near(Math.asin(d[1]) * 180 / Math.PI, sun.elevationDeg, 0.1));
+assert(d[0] < 0 && d[2] > 0, '太陽必須照到西立面且偏南');
+// 與立面法線（-X）的水平夾角在 30°–60°：雕刻才有側光立體感
+const offAxis = Math.atan2(d[2], -d[0]) * 180 / Math.PI;
+assert(offAxis >= 30 && offAxis <= 60, `太陽與立面夾角 ${offAxis.toFixed(1)}°`);
+// 對岸建築不可擋住西立面牆腳
+const bank = LAYOUT.surroundings.buildings.find((b) => b.id === 'leftBankRow');
+const rise = (bank.z0 / d[2]) * d[1];
+assert(rise > bank.ridge, '對岸建築擋住立面陽光');
 
 console.log('layout.js OK —',
   `${C.flyingButtresses.length} 組飛扶壁、${C.gargoyles.length} 隻滴水獸、`,
