@@ -66,7 +66,7 @@ export function buildWestFront(ctx) {
     const t = wf.towers.find((q) => q.id === s.tower);
     a.tone = 0.98;
     stackY(a, [
-      { y: t.belfry.yBottom, foot: regularPoly(s.x, s.z, s.radius, 12) },
+      { y: s.baseY ?? t.belfry.yBottom, foot: regularPoly(s.x, s.z, s.radius, 12) },
       { y: s.top, foot: regularPoly(s.x, s.z, s.radius, 12) },
     ]);
     a.tone = 1.0;

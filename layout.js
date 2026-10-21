@@ -310,11 +310,12 @@ const towers = [
   topCornice: { y: 66.5, corbelTable: true },
   terrace: { y: 68.0, balustradeTop: 69.0, roof: { type: 'lowHip', rise: 2.0 } }, // 塔高 69 m；平台中央低坡鉛頂
 }));
-// 照片：每座塔外側西角各有一座樓梯小塔，圓錐頂略高出欄杆
+// 照片：樓梯小塔只在塔頂平台外側西角冒出一小截（欄杆以上約 1 m 再加圓錐頂），
+// 不是從鐘樓底一路升上來的柱子；塔角仍是正常的塔角扶壁
 const stairTurrets = [
-  { tower: 'northTower', x: 1.2, z: -19.3 },
-  { tower: 'southTower', x: 1.2, z: 19.3 },
-].map((t) => ({ ...t, radius: 1.3, top: 70.0, coneTip: 73.0 }));
+  { tower: 'northTower', x: 2.7, z: -18.0 },
+  { tower: 'southTower', x: 2.7, z: 18.0 },
+].map((t) => ({ ...t, radius: 1.0, baseY: 66.5, top: 70.2, coneTip: 72.6 }));
 
 // 立面扶壁正面壁龕雕像
 const buttressNicheStatues = [
