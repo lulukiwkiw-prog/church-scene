@@ -85,6 +85,8 @@ const SECTION = {
   chapelOuterZ: 21.5,     // 側禮拜堂外牆（扶壁之間）
   culeeInnerZ: 21.0,      // 扶壁墩（culée）內緣
   culeeOuterZ: 23.5,      // 扶壁墩外緣
+  tribuneWallThickness: 1.0,
+  chapelWallThickness: 1.0,
 };
 
 const HEIGHTS = {
@@ -290,7 +292,17 @@ const towers = [
     openings: { perFace: 2, width: 2.4, sill: 48.0, height: 16.0, offset: 2.6, archivolts: 3, louvres: true },
   },
   // 照片：塔角扶壁滿佈細長盲拱與捲葉，頂端小尖塔
-  cornerButtresses: { size: 1.6, top: 64.0, pinnacleTip: 66.0 },
+  // 鐘樓層牆面：西、外側退 1.5 m，東面與塔背 x = 13 齊平；中空殼牆厚 1.9 m
+  belfryShell: {
+    x0: 1.5, x1: WEST_FRONT_DEPTH,
+    z0: t.z0 < 0 ? -19.0 : 7.5, z1: t.z0 < 0 ? -7.5 : 19.0,
+    wallThickness: 1.9, capSoffitY: 65.0,
+  },
+  // 塔角扶壁：鐘樓牆角外推 0.3 m；西外角由樓梯小塔取代
+  cornerButtresses: {
+    size: 1.6, sizeUpper: 1.3, upperFromY: 55.0, top: 64.0, pinnacleTip: 66.0,
+    positions: t.z0 < 0 ? [[1.2, -7.2], [12.2, -19.3], [12.2, -7.2]] : [[1.2, 7.2], [12.2, 7.2], [12.2, 19.3]],
+  },
   topCornice: { y: 66.5, corbelTable: true },
   terrace: { y: 68.0, balustradeTop: 69.0, roof: { type: 'lowHip', rise: 2.0 } }, // 塔高 69 m；平台中央低坡鉛頂
 }));
@@ -396,11 +408,17 @@ for (const x of [naveBayCenters[NAVE_BAYS - 1], choirBayCenters[0]]) {
 // 後殿高窗與放射禮拜堂窗：放在相鄰頂點角度的中間
 for (let i = 0; i < APSE_VERTEX_ANGLES_DEG.length - 1; i++) {
   const a = (APSE_VERTEX_ANGLES_DEG[i] + APSE_VERTEX_ANGLES_DEG[i + 1]) / 2;
-  const [hx, hz] = apsePoint(a, wallOuterZ);
-  const [cx, cz] = apsePoint(a, SECTION.chapelOuterZ);
+  // 多邊形牆面中點在頂點半徑 × cos(半個頂角 18°)
+  const k = Math.cos(18 * DEG);
+  const [hx, hz] = apsePoint(a, wallOuterZ * k);
+  const [cx, cz] = apsePoint(a, SECTION.chapelOuterZ * k);
   windows.clerestory.push({ x: hx, z: hz, angleDeg: a, sill: 24.5, height: 8.5, width: 3.0, lancets: 2, oculus: true });
   windows.chapel.push({ x: cx, z: cz, angleDeg: a, sill: 3.0, height: 7.0, width: 3.0, lancets: 2, oculus: true });
 }
+
+// 紅門佔用北側詩班席第 2 開間，該開間不開禮拜堂窗
+const PORTE_ROUGE_X = choirBayCenters[1];
+windows.chapel = windows.chapel.filter((w) => !(w.angleDeg === undefined && w.z < 0 && w.x === PORTE_ROUGE_X));
 
 // -----------------------------------------------------------------------------
 // 袖廊立面（北：修院門 Portail du Cloître；南：聖艾蒂安門 Portail Saint-Étienne）
@@ -516,6 +534,9 @@ const cathedral = {
     towers,
     stairTurrets,
     centerSectionTop: 46.0,
+    galleryRecessX: 1.5, // 大迴廊層（y 38–46）牆面退到 x = 1.5，前面是柱廊
+    // 立面扶壁在國王廊段（17–22.5）讓開，不擋國王像；22.5 以上從露臺平台重新開始
+    buttressGapAtKings: [17.0, 22.5],
   },
 
   nave: {
@@ -558,12 +579,12 @@ const cathedral = {
   gargoyles,
 
   // 詩班席北側的紅門
-  porteRouge: { x: 81.0, z: -SECTION.chapelOuterZ, width: 2.4, height: 6.0, apex: 7.4, color: 'red' },
+  porteRouge: { x: PORTE_ROUGE_X, z: -SECTION.chapelOuterZ, width: 2.4, height: 6.0, apex: 7.4, color: 'red' },
 
   // 維奧萊-勒-杜克所建的聖器室（南側，以廊道接詩班席）
   sacristy: {
     x0: 82.0, x1: 102.0, z0: 27.0, z1: 41.0, eave: 12.0, ridge: 17.0, roofType: 'gable', ridgeAxis: 'x',
-    passage: { x0: 88.0, x1: 92.0, z0: SECTION.culeeOuterZ, z1: 27.0, height: 6.0 },
+    passage: { x0: 88.0, x1: 92.0, z0: SECTION.chapelOuterZ, z1: 27.0, height: 6.0 },
   },
 };
 
