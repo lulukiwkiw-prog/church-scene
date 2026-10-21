@@ -47,7 +47,7 @@ export function hoodStrips(s = 1) {
 // 玫瑰窗：中心小圓 → 內圈放射細柱 → 尖拱環 → 外圈細柱 → 外緣尖瓣拱環 → 框線
 // -----------------------------------------------------------------------------
 export function rose(batch, M, o) {
-  const { R, cz = 0, cy, x0 = 0, nIn, nOut, oculusR = R * 0.19, frameW = R * 0.1, frameFront = -0.12, frameK = 2, glass = true } = o;
+  const { R, cz = 0, cy, x0 = 0, nIn, nOut, oculusR = R * 0.19, frameW = R * 0.1, frameFront = -0.12, frameK = 2, glass = true, inset = 0 } = o;
   const k = R / 4.8;
   const t = 0.3 * Math.max(0.6, k);
   const add = (key, g, m, uv) => batch.add(key, g, mul(M, T(0, cy, cz), m), uv);
@@ -102,7 +102,7 @@ export function rose(batch, M, o) {
     batch.addMany('carved', ring, ms);
   }
   // 框
-  add('carved', ringBand(steppedFrame(frameW, x0 + t, frameFront, frameK), { R0: R, n: 128 }), null, 'keep');
+  add('carved', ringBand(steppedFrame(frameW, x0 + t, frameFront, frameK), { R0: R - inset, n: 128 }), null, 'keep');
 }
 
 // -----------------------------------------------------------------------------
