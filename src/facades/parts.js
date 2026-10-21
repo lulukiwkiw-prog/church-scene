@@ -52,7 +52,7 @@ export function rose(batch, M, o) {
   const t = 0.3 * Math.max(0.6, k);
   const add = (key, g, m, uv) => batch.add(key, g, mul(M, T(0, cy, cz), m), uv);
   const r1 = R * 0.53, aH1 = R * 0.1, band1 = R * 0.06;
-  const r2 = R * 0.9, aH2 = R * 0.09;
+  const r2 = R * 0.965, aH2 = R * 0.1;
 
   if (glass) add('glass', new THREE.CircleGeometry(R + 0.03, 72).applyMatrix4(plateM(x0 + t + 0.03)), null);
   // 中心小圓
