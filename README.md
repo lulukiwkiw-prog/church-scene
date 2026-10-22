@@ -20,7 +20,7 @@
 
 部署方式（擇一）：
 
-1. **GitHub Pages**（repo 公開即免費）：Settings → Pages → *Deploy from a branch* → 選分支與 `/ (root)` → Save。網址是 `https://<帳號>.github.io/church-scene/`。
+1. **GitHub Pages**（repo 公開即免費）：Settings → Pages → *Deploy from a branch* → 選分支與 `/ (root)` → Save。網址是 `https://lulukiwkiw-prog.github.io/church-scene/`。
 2. **Netlify Drop**（app.netlify.com/drop）或 **Cloudflare Pages**：把 `dist` 資料夾（或 zip 解壓後的資料夾）拖進去。
 3. 本機測試：`cd dist && python3 -m http.server`，開 http://localhost:8000（不能直接雙擊 index.html，瀏覽器不允許 `file://` 載入 ES module）。
 
