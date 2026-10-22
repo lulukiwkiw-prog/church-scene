@@ -19,6 +19,10 @@
   html, body { height: 100%; }
   body { background: var(--plate-solid); color: var(--ink); font: 14px/1.5 var(--body); overflow: hidden; }
   #stage, #stage canvas { position: fixed; inset: 0; display: block; touch-action: none; }
+  #stage canvas { cursor: grab; }
+  #stage canvas.dragging { cursor: grabbing; }
+  .opt { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: 13px; color: var(--ink); cursor: pointer; }
+  .opt input { accent-color: var(--gold); width: 16px; height: 16px; }
   button { font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 3px; padding: 5px 10px; cursor: pointer; white-space: nowrap; }
   button:hover { border-color: var(--gold); }
   button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
@@ -81,7 +85,6 @@
   <div id="top">
     <div id="title" class="plate">Notre-Dame<small>春分傍晚 · 程式生成</small></div>
     <div id="tools" class="plate">
-      <button type="button" id="mode" aria-pressed="false">步行</button>
       <button type="button" id="film" aria-pressed="false">影片路線</button>
       <button type="button" id="sound" aria-pressed="false">聲音：關</button>
       <button type="button" id="music" aria-pressed="true" hidden>音樂：開</button>
@@ -92,20 +95,22 @@
   <div id="help" class="plate" hidden>
     <h2>操作</h2>
     <dl id="help-keys">
-      <dt>點畫面</dt><dd>鎖定滑鼠轉視角（Esc 放開）</dd>
-      <dt>W A S D</dt><dd>前後左右移動</dd>
+      <dt>W / S</dt><dd>前進 / 後退</dd>
+      <dt>A / D</dt><dd>向左 / 向右平移</dd>
+      <dt>E / Q</dt><dd>上升 / 下降</dd>
+      <dt>按住拖曳</dt><dd>滑鼠左鍵按住拖動畫面轉視角（游標不會消失）</dd>
+      <dt>方向鍵</dt><dd>也可以轉視角</dd>
       <dt>Shift</dt><dd>加速</dd>
-      <dt>F</dt><dd>切換步行 / 飛行</dd>
-      <dt>E / Q</dt><dd>飛行時上升 / 下降</dd>
       <dt>滾輪</dt><dd>拉近 / 拉遠（望遠鏡）</dd>
     </dl>
     <dl id="help-touch">
       <dt>左下拖曳</dt><dd>移動</dd>
-      <dt>右邊拖曳</dt><dd>轉頭</dd>
-      <dt>▲ ▼</dt><dd>飛行時上升 / 下降</dd>
+      <dt>右邊拖曳</dt><dd>轉視角</dd>
+      <dt>▲ ▼</dt><dd>上升 / 下降</dd>
     </dl>
+    <label class="opt"><input type="checkbox" id="invert"> 反轉視角拖曳方向</label>
     <p>按「聲音」開啟鐘聲、慢板巴薩諾瓦配樂與廣場環境音（全部即時合成）。清脆的鐘聲從兩座鐘樓傳來，靠近或轉頭會聽到方向與遠近的變化，約每 75 秒響一輪。</p>
-    <p>步行時會被教堂、建築與河岸擋住，只能從橋過河；飛行模式可以自由穿越，上到國王廊、玫瑰窗、沉思者近看。</p>
+    <p>全程是自由飛行：可以穿越建築，飛上國王廊、玫瑰窗、沉思者近看。按右上「?」可隨時再打開這份說明。</p>
   </div>
   <div id="spots-wrap"><div id="spots" class="plate"></div></div>
   <div id="coords"></div>

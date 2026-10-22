@@ -179,13 +179,16 @@ const SPOTS = [
 ];
 
 // -----------------------------------------------------------------------------
-// 操控：yaw / pitch + 移動
+// 操控：統一為自由飛行
+//   W / S 前進後退（水平）、A / D 左右平移、E / Q 上升下降、Shift 加速
+//   按住滑鼠左鍵拖曳轉視角（像拖動畫面，游標一直看得到）、方向鍵也能轉視角
 // -----------------------------------------------------------------------------
-const EYE = 1.7;
-const state = { yaw: 0, pitch: 0, fly: false, film: false, filmT: 0 };
+const state = { yaw: 0, pitch: 0, film: false, filmT: 0 };
 const keys = new Set();
 const moveTouch = { x: 0, y: 0 };
 const vel = new THREE.Vector3();
+let invertLook = false;
+try { invertLook = localStorage.getItem('nd-invert') === '1'; } catch { /* 略過 */ }
 
 function lookAtPoint(target) {
   const d = new THREE.Vector3(...target).sub(camera.position);
@@ -195,108 +198,67 @@ function lookAtPoint(target) {
 
 function goTo(spot, instant = false) {
   state.film = false;
-  setFly(!!spot.fly || spot.pos[1] > EYE + 0.5);
   camera.position.set(...spot.pos);
   lookAtPoint(spot.look);
   vel.set(0, 0, 0);
   if (!instant) toast(spot.name);
 }
 
-function setFly(on) {
-  state.fly = on;
-  $('mode').textContent = on ? '飛行' : '步行';
-  $('mode').setAttribute('aria-pressed', String(on));
-  $('updown').hidden = !on || !isTouch;
-  if (!on) camera.position.y = EYE;
-}
-
-// ---- 平面碰撞（步行模式）：由 layout 輪廓組成 ----
-const S = C.section;
-const rects = [
-  [WF.x0 - 1.7, C.nave.x0 + 0.5, WF.z0 - 0.3, WF.z1 + 0.3],                 // 西立面與雙塔（含扶壁）
-  [C.nave.x0, C.apse.cx, -S.culeeOuterZ, S.culeeOuterZ],                    // 中殿、詩班席（含扶壁墩）
-  [C.transept.crossing.x0 - 1.2, C.transept.crossing.x1 + 1.2, -C.transept.armZ - 0.4, C.transept.armZ + 0.4],
-  [C.sacristy.x0, C.sacristy.x1, C.sacristy.z0, C.sacristy.z1],
-  [C.sacristy.passage.x0, C.sacristy.passage.x1, C.sacristy.passage.z0, C.sacristy.passage.z1],
-  [P.charlemagne.x - P.charlemagne.pedestal.length / 2, P.charlemagne.x + P.charlemagne.pedestal.length / 2,
-    P.charlemagne.z - P.charlemagne.pedestal.width / 2, P.charlemagne.z + P.charlemagne.pedestal.width / 2],
-  [P.cryptEntrance.x0, P.cryptEntrance.x1, P.cryptEntrance.z0, P.cryptEntrance.z1],
-  ...LAYOUT.surroundings.buildings.map((b) => [b.x0, b.x1, b.z0, b.z1]),
-];
-const RIVER = LAYOUT.surroundings.seine;
-const bridges = LAYOUT.surroundings.bridges;
-const R = 0.45; // 身體半徑
-
-function blocked(x, z) {
-  for (const [x0, x1, z0, z1] of rects) if (x > x0 - R && x < x1 + R && z > z0 - R && z < z1 + R) return true;
-  if (Math.hypot(x - C.apse.cx, z) < S.culeeOuterZ + R && x > C.apse.cx) return true; // 後殿半圓
-  // 塞納河：只能走橋
-  if (z > RIVER.quayWall.z - R && z < RIVER.leftBankQuayWall.z + R) {
-    if (!bridges.some((b) => x > b.x0 + 1.2 && x < b.x1 - 1.2)) return true;
-  }
-  const isl = LAYOUT.surroundings.island;
-  return x < isl.x0 || x > isl.x1 || z < isl.z0 || z > RIVER.leftBankQuayWall.z + 30;
-}
-
+const isl = LAYOUT.surroundings.island;
 function step(dt) {
   if (state.film) return;
-  const fwd = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0) + moveTouch.y;
-  const side = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) + moveTouch.x;
-  const up = (keys.has('KeyE') || keys.has('Space') || touchUp > 0 ? 1 : 0) - (keys.has('KeyQ') || keys.has('KeyC') || touchUp < 0 ? 1 : 0);
-  const run = keys.has('ShiftLeft') || keys.has('ShiftRight');
-  const speed = state.fly ? (run ? 40 : 14) : (run ? 9 : 3.2);
+  const k = (c) => (keys.has(c) ? 1 : 0);
+  const fwd = k('KeyW') - k('KeyS') + moveTouch.y;
+  const side = k('KeyD') - k('KeyA') + moveTouch.x;
+  const up = k('KeyE') + k('Space') - k('KeyQ') - k('KeyC') + touchUp;
+  // 方向鍵：轉視角（不用滑鼠也能看）
+  state.yaw += (k('ArrowLeft') - k('ArrowRight')) * 1.4 * dt;
+  state.pitch = Math.max(-1.45, Math.min(1.45, state.pitch + (k('ArrowUp') - k('ArrowDown')) * 1.0 * dt));
 
+  const run = keys.has('ShiftLeft') || keys.has('ShiftRight');
+  const speed = run ? 28 : 7;
   const sy = Math.sin(state.yaw), cy = Math.cos(state.yaw);
-  const want = new THREE.Vector3(-sy * fwd + cy * side, state.fly ? up : 0, -cy * fwd - sy * side);
+  const want = new THREE.Vector3(-sy * fwd + cy * side, up, -cy * fwd - sy * side);
   if (want.lengthSq() > 1) want.normalize();
   want.multiplyScalar(speed);
-  vel.lerp(want, 1 - Math.exp(-dt * 10));
+  vel.lerp(want, 1 - Math.exp(-dt * 8));
 
   const p = camera.position;
-  if (state.fly) {
-    p.addScaledVector(vel, dt);
-    p.y = Math.max(0.8, Math.min(400, p.y));
-  } else {
-    const nx = p.x + vel.x * dt, nz = p.z + vel.z * dt;
-    if (!blocked(nx, p.z)) p.x = nx;
-    if (!blocked(p.x, nz)) p.z = nz;
-    p.y = EYE;
-  }
+  p.addScaledVector(vel, dt);
+  p.y = Math.max(0.6, Math.min(400, p.y));
+  p.x = Math.max(isl.x0 - 80, Math.min(isl.x1 + 80, p.x));
+  p.z = Math.max(isl.z0 - 80, Math.min(LAYOUT.surroundings.seine.leftBankQuayWall.z + 80, p.z));
 }
 
-// ---- 鍵盤與滑鼠 ----
+// ---- 鍵盤 ----
 addEventListener('keydown', (e) => {
-  if (e.target.closest && e.target.closest('button')) return;
+  if (e.target.closest && e.target.closest('button, input')) return;
   keys.add(e.code);
-  if (e.code === 'KeyF') setFly(!state.fly);
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
 
+// ---- 滑鼠：按住拖曳轉視角（「抓住畫面」的方向，像看街景），游標不會消失 ----
 const canvas = renderer.domElement;
-canvas.addEventListener('click', () => {
-  if (isTouch || document.pointerLockElement) return;
-  try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch { /* 不支援就用拖曳 */ }
-});
-
-
 function turn(dx, dy, k) {
-  state.yaw -= dx * k;
-  state.pitch = Math.max(-1.45, Math.min(1.45, state.pitch - dy * k));
+  const s = invertLook ? -1 : 1;
+  state.yaw += s * dx * k;
+  state.pitch = Math.max(-1.45, Math.min(1.45, state.pitch + s * dy * k));
 }
-addEventListener('mousemove', (e) => { if (document.pointerLockElement === canvas) turn(e.movementX, e.movementY, 0.0022); });
-
-// 沒有 pointer lock 時：拖曳轉視角（桌機）
 let drag = null;
 canvas.addEventListener('pointerdown', (e) => {
   if (e.pointerType === 'touch') return;
   drag = { x: e.clientX, y: e.clientY };
+  canvas.classList.add('dragging');
+  try { canvas.setPointerCapture(e.pointerId); } catch { /* 略過 */ }
 });
-addEventListener('pointerup', () => { drag = null; });
-addEventListener('pointermove', (e) => {
-  if (!drag || document.pointerLockElement) return;
-  turn(e.clientX - drag.x, e.clientY - drag.y, 0.004);
+const endDrag = () => { drag = null; canvas.classList.remove('dragging'); };
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  turn(e.clientX - drag.x, e.clientY - drag.y, 0.0035);
   drag = { x: e.clientX, y: e.clientY };
 });
 canvas.addEventListener('wheel', (e) => {
@@ -368,7 +330,13 @@ function buildUI() {
     b.addEventListener('click', () => goTo(s));
     list.appendChild(b);
   }
-  $('mode').addEventListener('click', () => setFly(!state.fly));
+  $('updown').hidden = !isTouch;
+  const inv = $('invert');
+  inv.checked = invertLook;
+  inv.addEventListener('change', () => {
+    invertLook = inv.checked;
+    try { localStorage.setItem('nd-invert', invertLook ? '1' : '0'); } catch { /* 略過 */ }
+  });
   const sb = $('sound'), mb = $('music');
   sb.addEventListener('click', () => {
     if (audio.running) { audio.stop(); sb.textContent = '聲音：關'; sb.setAttribute('aria-pressed', 'false'); mb.hidden = true; }
@@ -384,8 +352,7 @@ function buildUI() {
     state.filmT = 0;
     $('film').setAttribute('aria-pressed', String(state.film));
     $('film').textContent = state.film ? '停止' : '影片路線';
-    if (!state.film) setFly(camera.position.y > EYE + 0.5); // 停在目前位置繼續操控
-    else camera.fov = 60;
+    if (state.film) camera.fov = 60; // 停止時就停在目前位置繼續操控
   });
   const qb = $('quality');
   const label = () => { qb.textContent = `畫質：${QUALITY[quality].label}`; };
@@ -401,7 +368,7 @@ function buildUI() {
   $('help-toggle').addEventListener('click', () => { $('help').hidden = !$('help').hidden; });
   $('help-touch').hidden = !isTouch;
   $('help-keys').hidden = isTouch;
-  $('hint').textContent = isTouch ? '左下拖曳移動，右邊拖曳轉頭' : '點畫面鎖定滑鼠 · WASD 移動 · Shift 加速 · F 切換飛行';
+  $('hint').textContent = isTouch ? '左下拖曳移動 · 右邊拖曳轉視角 · ▲▼ 升降' : 'W S 前進後退 · A D 左右 · E Q 上升下降 · 按住滑鼠拖曳轉視角 · Shift 加速';
 }
 
 addEventListener('resize', () => {
@@ -465,9 +432,12 @@ load()
     $('hud').hidden = false;
     // 提示停留幾秒，或第一次操作就收起
     const hideHint = () => { $('hint').hidden = true; };
-    setTimeout(hideHint, 7000);
+    setTimeout(hideHint, 12000);
     addEventListener('keydown', hideHint, { once: true });
-    addEventListener('pointerdown', hideHint, { once: true });
+    // 第一次來：自動打開操作說明
+    let seen = false;
+    try { seen = localStorage.getItem('nd-help-seen') === '1'; localStorage.setItem('nd-help-seen', '1'); } catch { /* 略過 */ }
+    if (!seen) $('help').hidden = false;
     clock.getDelta();
     requestAnimationFrame(frame);
   })
