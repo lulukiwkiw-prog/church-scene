@@ -47,14 +47,15 @@ const BPM = 92, BEAT = 60 / BPM, BAR = 4 * BEAT, SIX = BEAT / 4;
 const PEAL_BAR = 4; // 鐘聲在第 5 小節加入（約第 10.4 秒）
 // 鐘聲音量（版本 2：原本較大聲的音量；版本 1 為 0.065 / 0.11）
 const BELL_GAIN = 0.16, TOLL_GAIN = 0.28;
-const MUSIC_UNDER_BELLS = 0.5; // 鐘響時音樂的音量比例
+const MUSIC_UNDER_BELLS = 1; // 鐘響時音樂維持原音量（主旋律不壓低）
 // 巴薩諾瓦吉他節奏（以十六分音符為格，兩小節一組）：和弦撥奏與拇指低音
 const GUITAR_HITS = [[0, 3, 6, 10, 13], [2, 6, 10, 12]];
 const THUMB = [0, 6, 8, 14];
 
 // 清脆的鐘：D 大調八口鐘（由高到低輪敲），最後一口低鐘敲三下
-const PEAL = ['D6', 'C#6', 'B5', 'A5', 'G5', 'F#5', 'E5', 'D5'].map((x) => mtof(n(x)));
-const TOLL = mtof(n('A4'));
+// 鐘比旋律（A4–C6）高一個八度，不必壓低音樂也聽得清楚
+const PEAL = ['D7', 'C#7', 'B6', 'A6', 'G6', 'F#6', 'E6', 'D6'].map((x) => mtof(n(x)));
+const TOLL = mtof(n('A5'));
 // 分音：[頻率倍數（相對 strike 音）, 相對音量, 衰減秒數]；高分音較強 → 清亮
 const PARTIALS = [[0.5, 0.2, 3.4], [1, 0.6, 2.8], [1.2, 0.2, 2.1], [1.5, 0.12, 1.8], [2, 0.3, 1.6], [2.51, 0.12, 1.1], [2.66, 0.09, 1.0], [3.01, 0.1, 0.8], [4.16, 0.05, 0.55], [5.43, 0.03, 0.4]];
 
@@ -138,6 +139,8 @@ export function createAudio({ layout }) {
     // 初始：雜訊經過平滑（尼龍弦比鋼弦柔）
     let prev = 0;
     for (let i = 0; i < N; i++) { const w = rand() * 2 - 1; prev = prev + (w - prev) * bright; d[i] = prev; }
+    let mean = 0; for (let i = 0; i < N; i++) mean += d[i] / N;
+    for (let i = 0; i < N; i++) d[i] -= mean; // 去掉直流成分，低音弦才不會「砰」一聲
     const loss = 0.4985 - 0.0006 * Math.max(0, (midi - 60) / 12);
     for (let i = N; i < len; i++) d[i] = loss * (d[i - N] + d[i - N + 1]);
     let peak = 0; for (let i = 0; i < len; i++) peak = Math.max(peak, Math.abs(d[i]));
@@ -148,10 +151,11 @@ export function createAudio({ layout }) {
   function guitar(midi, when, vel, dest, bright = 0.45, dur = 2.4) {
     const src = ctx.createBufferSource(); src.buffer = pluckBuffer(midi, bright);
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800;
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 70;
     const g = ctx.createGain();
     g.gain.setValueAtTime(vel, when);
     g.gain.setTargetAtTime(0, when + dur, 0.08);
-    src.connect(lp).connect(g).connect(dest);
+    src.connect(hp).connect(lp).connect(g).connect(dest);
     src.start(when); src.stop(when + dur + 0.5);
   }
   // 低音提琴：柔和的正弦＋三角波撥奏
@@ -227,7 +231,7 @@ export function createAudio({ layout }) {
     }
     for (const i of THUMB) guitar(i < 8 ? B.chord[0] : B.bass[1] + 12, sw(i), 0.13, musicBus, 0.18, SIX * (i === 6 ? 1.6 : 2.8)); // 根音 → 五度
     // 低音提琴：第 1、3 拍（第二遍才進來）
-    if (second || b >= 8) { upright(B.bass[0], sw(0), 0.12, musicBus); upright(B.bass[1], sw(8), 0.1, musicBus); }
+    if (second || b >= 8) { upright(B.bass[0], sw(0), 0.07, musicBus); upright(B.bass[1], sw(8), 0.06, musicBus); }
     // 刷鼓：每個十六分音符很輕地刷，二、四拍稍重；邊擊敲巴薩諾瓦的節奏
     for (let i = 0; i < 16; i++) brush(sw(i), i % 4 === 0 ? 0.012 : i % 4 === 2 ? 0.02 : 0.007, musicBus, i % 8 === 4 ? 0.25 : 0.1);
     for (const i of b % 2 ? [2, 6, 12] : [0, 6, 12]) rim(sw(i), 0.03, musicBus);
