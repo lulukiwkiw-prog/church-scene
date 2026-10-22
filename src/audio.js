@@ -1,11 +1,11 @@
 // src/audio.js — 互動版的聲音（全部即時合成，沒有任何錄音檔）
 // -----------------------------------------------------------------------------
-// - 鐘聲：明亮清脆的小鐘（加法合成，強調高分音與敲擊聲），D 大調八口鐘由高到低
+// - 鐘聲：清脆柔和的小鐘（加法合成），D 大調八口鐘由高到低
 //   輪敲（rounds），最後一口較低的鐘敲三下。聲源放在兩座鐘樓（PannerNode），
 //   走遠會變小、轉頭會換邊。
 // - 配樂：原創的慢板巴薩諾瓦（D 大調，每分鐘 92 拍）：尼龍弦吉他
 //   （Karplus-Strong 撥弦合成）彈切分和弦、低音提琴、輕刷鼓與邊擊，旋律是無歌詞的
-//   輕柔哼唱聲（共振峰合成的「嗚」母音）。鐘響時配樂自動壓低。
+//   輕柔哼唱聲（共振峰合成的「嗚」母音）。鐘聲與音樂輪流，不重疊。
 // - 環境音：遠處城市的輕微底噪、鴿群的咕咕聲（放在鴿群位置）。
 // 瀏覽器規定聲音只能在使用者點擊後開始：start() 必須在 click 事件裡呼叫。
 // -----------------------------------------------------------------------------
@@ -52,7 +52,7 @@ const THUMB = [0, 6, 8, 14];
 const PEAL = ['D6', 'C#6', 'B5', 'A5', 'G5', 'F#5', 'E5', 'D5'].map((x) => mtof(n(x)));
 const TOLL = mtof(n('A4'));
 // 分音：[頻率倍數（相對 strike 音）, 相對音量, 衰減秒數]；高分音較強 → 清亮
-const PARTIALS = [[0.5, 0.18, 3.2], [1, 0.55, 2.6], [1.2, 0.22, 2.0], [1.5, 0.16, 1.7], [2, 0.42, 1.5], [2.51, 0.22, 1.1], [2.66, 0.18, 1.0], [3.01, 0.2, 0.8], [4.16, 0.12, 0.55], [5.43, 0.08, 0.4], [6.8, 0.05, 0.3]];
+const PARTIALS = [[0.5, 0.2, 3.4], [1, 0.6, 2.8], [1.2, 0.2, 2.1], [1.5, 0.12, 1.8], [2, 0.3, 1.6], [2.51, 0.12, 1.1], [2.66, 0.09, 1.0], [3.01, 0.1, 0.8], [4.16, 0.05, 0.55], [5.43, 0.03, 0.4]];
 
 export function createAudio({ layout }) {
   const W = layout.cathedral.westFront;
@@ -61,7 +61,7 @@ export function createAudio({ layout }) {
   const flock = layout.actors.pigeons[0].center;
 
   let ctx = null, master, musicBus, bellBus, ambBus, timer = null;
-  let musicOn = true, bar = 0, nextBarTime = 0, pass = 0, nextPeal = 0, nextCoo = 0;
+  let musicOn = true, bar = 0, nextBarTime = 0, pass = 0, pealDue = true, nextCoo = 0;
   let seed = 12345;
   const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; // 只用於演奏的細微人性化
 
@@ -87,7 +87,7 @@ export function createAudio({ layout }) {
         o.frequency.value = f * ratio * det;
         const g = ctx.createGain();
         g.gain.setValueAtTime(0, when);
-        g.gain.linearRampToValueAtTime(amp, when + 0.002);
+        g.gain.linearRampToValueAtTime(amp, when + 0.006);
         g.gain.exponentialRampToValueAtTime(0.0001, when + decay);
         o.connect(g).connect(out);
         o.start(when);
@@ -99,7 +99,7 @@ export function createAudio({ layout }) {
     for (let i = 0; i < len; i++) d[i] = (rand() * 2 - 1) * Math.pow(1 - i / len, 4);
     const src = ctx.createBufferSource(); src.buffer = buf;
     const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = Math.min(9000, f * 4);
-    const g = ctx.createGain(); g.gain.value = 0.35;
+    const g = ctx.createGain(); g.gain.value = 0.12;
     src.connect(hp).connect(g).connect(out);
     src.start(when);
   }
@@ -116,11 +116,7 @@ export function createAudio({ layout }) {
     }
     t += 0.6;
     for (let k = 0; k < 3; k++) { bell(TOLL, t, 0.28, sp); t += 1.9; }
-    const g = musicBus.gain;
-    g.cancelScheduledValues(start);
-    g.setTargetAtTime(musicOn ? 0.35 : 0, start, 0.6);
-    g.setTargetAtTime(musicOn ? 1 : 0, t + 1, 1.5);
-    return t;
+    return t + 1.9;
   }
 
   // ---------------- 尼龍弦吉他（Karplus-Strong，預先算好每個音）----------------
@@ -142,7 +138,7 @@ export function createAudio({ layout }) {
   }
   function guitar(midi, when, vel, dest, bright = 0.45, dur = 2.4) {
     const src = ctx.createBufferSource(); src.buffer = pluckBuffer(midi, bright);
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3200;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800;
     const g = ctx.createGain();
     g.gain.setValueAtTime(vel, when);
     g.gain.setTargetAtTime(0, when + dur, 0.08);
@@ -171,7 +167,7 @@ export function createAudio({ layout }) {
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = rand() * 2 - 1;
     }
     const src = ctx.createBufferSource(); src.buffer = noiseBuf;
-    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 5200; bp.Q.value = 0.6;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3800; bp.Q.value = 0.5;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0, when);
     g.gain.linearRampToValueAtTime(vel, when + len * 0.4);
@@ -180,7 +176,7 @@ export function createAudio({ layout }) {
     src.start(when, rand() * 0.8); src.stop(when + len + 0.02);
   }
   function rim(when, vel, dest) {
-    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = 1750;
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = 1100;
     const g = ctx.createGain();
     g.gain.setValueAtTime(vel, when);
     g.gain.exponentialRampToValueAtTime(0.0005, when + 0.05);
@@ -189,25 +185,25 @@ export function createAudio({ layout }) {
   // 輕柔哼唱：鋸齒波 → 兩個共振峰（「嗚」母音）→ 慢起音、延遲顫音
   function hum(midi, when, dur, vel, dest) {
     const f = mtof(midi);
-    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
+    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
     const vib = ctx.createOscillator(); vib.frequency.value = 5.2;
     const vg = ctx.createGain();
     vg.gain.setValueAtTime(0, when);
-    vg.gain.linearRampToValueAtTime(f * 0.009, when + Math.min(0.6, dur * 0.6));
+    vg.gain.linearRampToValueAtTime(f * 0.006, when + Math.min(0.6, dur * 0.6));
     vib.connect(vg).connect(o.frequency);
     // 輕微滑音進入（歌手的習慣）
     o.frequency.setValueAtTime(f * 0.985, when);
     o.frequency.exponentialRampToValueAtTime(f, when + 0.09);
     const f1 = ctx.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 340; f1.Q.value = 4;
     const f2 = ctx.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 820; f2.Q.value = 6;
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400;
     const mix = ctx.createGain(); mix.gain.value = 1;
     const a = ctx.createGain(); a.gain.value = 1.0;
-    const b = ctx.createGain(); b.gain.value = 0.45;
+    const b = ctx.createGain(); b.gain.value = 0.3;
     o.connect(lp); lp.connect(f1).connect(a).connect(mix); lp.connect(f2).connect(b).connect(mix);
     const env = ctx.createGain();
     env.gain.setValueAtTime(0, when);
-    env.gain.linearRampToValueAtTime(vel, when + 0.09);
+    env.gain.linearRampToValueAtTime(vel, when + 0.14);
     env.gain.setValueAtTime(vel * 0.9, when + Math.max(0.1, dur - 0.12));
     env.gain.linearRampToValueAtTime(0, when + dur + 0.18);
     mix.connect(env).connect(dest);
@@ -218,14 +214,14 @@ export function createAudio({ layout }) {
     const sw = (i) => t0 + i * SIX + (rand() - 0.5) * 0.012; // 十六分音符格＋一點人性化
     // 吉他：切分和弦（高三個音）＋拇指低音
     for (const i of GUITAR_HITS[b % 2]) {
-      B.chord.slice(1).forEach((m, k) => guitar(m, sw(i) + k * 0.012, 0.11, musicBus, 0.4, SIX * 2.6));
+      B.chord.slice(1).forEach((m, k) => guitar(m, sw(i) + k * 0.018, 0.085, musicBus, 0.22, SIX * 2.8));
     }
-    for (const i of THUMB) guitar(i < 8 ? B.chord[0] : B.bass[1] + 12, sw(i), 0.16, musicBus, 0.3, SIX * (i === 6 ? 1.6 : 2.8)); // 根音 → 五度
+    for (const i of THUMB) guitar(i < 8 ? B.chord[0] : B.bass[1] + 12, sw(i), 0.13, musicBus, 0.18, SIX * (i === 6 ? 1.6 : 2.8)); // 根音 → 五度
     // 低音提琴：第 1、3 拍（第二遍才進來）
-    if (second || b >= 8) { upright(B.bass[0], sw(0), 0.17, musicBus); upright(B.bass[1], sw(8), 0.14, musicBus); }
+    if (second || b >= 8) { upright(B.bass[0], sw(0), 0.12, musicBus); upright(B.bass[1], sw(8), 0.1, musicBus); }
     // 刷鼓：每個十六分音符很輕地刷，二、四拍稍重；邊擊敲巴薩諾瓦的節奏
-    for (let i = 0; i < 16; i++) brush(sw(i), i % 4 === 0 ? 0.02 : i % 4 === 2 ? 0.035 : 0.012, musicBus, i % 8 === 4 ? 0.25 : 0.1);
-    for (const i of b % 2 ? [2, 6, 12] : [0, 6, 12]) rim(sw(i), 0.05, musicBus);
+    for (let i = 0; i < 16; i++) brush(sw(i), i % 4 === 0 ? 0.012 : i % 4 === 2 ? 0.02 : 0.007, musicBus, i % 8 === 4 ? 0.25 : 0.1);
+    for (const i of b % 2 ? [2, 6, 12] : [0, 6, 12]) rim(sw(i), 0.03, musicBus);
     // 旋律：哼唱（第二遍稍輕）
     for (const [at, d, p] of B.mel) hum(p, t0 + at * BEAT + (rand() - 0.2) * 0.02, d * BEAT * 0.95, second ? 0.11 : 0.13, musicBus);
   }
@@ -271,13 +267,20 @@ export function createAudio({ layout }) {
   // ---------------- 排程 ----------------
   function tick() {
     const now = ctx.currentTime, ahead = now + 0.3;
+    // 鐘聲與音樂輪流：先響鐘，鐘聲完全結束後音樂從頭開始；
+    // 每演奏完兩遍（約 84 秒）在樂句結尾停下，再響一輪鐘，然後音樂重新開始。
     while (nextBarTime < ahead) {
+      if (pealDue) {
+        const end = peal(nextBarTime);
+        nextBarTime = end + 2.2; // 讓最後一下鐘聲餘韻散去
+        bar = 0; pass = 0; pealDue = false;
+        continue;
+      }
       if (musicOn) scheduleBar(bar, nextBarTime);
       nextBarTime += BAR;
       bar = (bar + 1) % SCORE.length;
-      if (bar === 0) pass++;
+      if (bar === 0 && ++pass >= 2) pealDue = true;
     }
-    if (now + 0.5 > nextPeal) { const end = peal(Math.max(now + 0.3, nextPeal)); nextPeal = end + 75; }
     if (now + 0.3 > nextCoo) { coo(Math.max(now + 0.1, nextCoo)); nextCoo = nextCoo + 5 + rand() * 7; }
   }
 
@@ -296,16 +299,16 @@ export function createAudio({ layout }) {
         const len = ctx.sampleRate * 2.8, ir = ctx.createBuffer(2, len, ctx.sampleRate);
         for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (rand() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
         verb.buffer = ir;
-        const wet = ctx.createGain(); wet.gain.value = 0.25;
+        const wet = ctx.createGain(); wet.gain.value = 0.3;
         verb.connect(wet).connect(master);
         musicBus = ctx.createGain(); musicBus.connect(master);
-        const mv = ctx.createGain(); mv.gain.value = 0.15; musicBus.connect(mv).connect(verb);
+        const mv = ctx.createGain(); mv.gain.value = 0.22; musicBus.connect(mv).connect(verb);
         bellBus = ctx.createGain(); bellBus.gain.value = 1; bellBus.connect(master);
         const bv = ctx.createGain(); bv.gain.value = 0.5; bellBus.connect(bv).connect(verb);
         ambBus = ctx.createGain(); ambBus.gain.value = 0.5; ambBus.connect(master);
         startAmbience();
         nextBarTime = ctx.currentTime + 0.2;
-        nextPeal = ctx.currentTime + 0.4; // 一開聲音就先響一輪鐘
+        pealDue = true; // 一開聲音就先響一輪鐘，之後音樂才開始
         nextCoo = ctx.currentTime + 3;
       }
       ctx.resume();
