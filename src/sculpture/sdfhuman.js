@@ -24,13 +24,14 @@ function headField(x, y, z, P) {
   const lowMid = (F.noseBase + F.chin) / 2, lowH = (F.noseBase - F.chin) / 2;
   // 顱骨 + 下半臉（下庭的長度由下巴底決定）
   let d = ell(x, y, z, 0, 0, 0, 0.05, 0.068, 0.057);
-  d = smin(d, ell(ax, y, z, 0, lowMid + 0.005, 0.014, P.fem ? 0.039 : 0.0435, lowH + 0.005, 0.042), 0.016);    // 下半臉（女性較窄，臉呈鵝蛋形）
+  d = smin(d, ell(ax, y, z, 0, lowMid + 0.005, 0.014, P.fem ? 0.0405 : 0.0435, lowH + 0.005, 0.042), P.fem ? 0.026 : 0.016);    // 下半臉（女性較窄，臉呈鵝蛋形）
   // 下巴：男寬而方、在唇前垂直線上；女小而尖、稍微後縮
   d = smin(d, ell(ax, y, z, 0, F.chin + F.chinR, F.chinZ - F.chinR, F.chinR * F.chinW, F.chinR, F.chinR), 0.012);
   // 下顎角：男性明顯（稜角），女性省略（線條柔和）
   if (F.jaw) d = smin(d, ell(ax, y, z, 0.037, F.chin + 0.02, 0.006, 0.011, 0.012, 0.016), 0.012);
   // 顴骨與臉頰：女性較低、較飽滿
-  d = smin(d, P.fem ? ball(ax, y, z, 0.03, -0.014, 0.04, 0.0178) : ball(ax, y, z, 0.033, -0.009, 0.04, 0.0158), 0.014);
+  // 女性用較小、較深的臉頰球配大的融合半徑：圓潤但不鼓出來
+  d = P.fem ? smin(d, ball(ax, y, z, 0.029, -0.012, 0.035, 0.015), 0.016) : smin(d, ball(ax, y, z, 0.033, -0.009, 0.04, 0.0158), 0.014);
   const browK = (P.fem ? 0.8 : 1.18) * (0.9 + 0.2 * P.seed);
   d = smin(d, cone(ax, y, z, 0, F.brow, 0.0455, 0.039, F.brow - 0.0015, 0.04, 0.0105 * browK, 0.0095 * browK), 0.012); // 眉骨（男性較突出）
   // 眼：先挖眼窩，再放回略凹的眼球與上眼瞼（女性眼睛略大）
