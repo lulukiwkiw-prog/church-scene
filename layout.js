@@ -667,12 +667,12 @@ const actors = {
       dash: { home: [-52, 30], target: [-46.5, 19.5], period: 20, runIn: 3.2, stay: 2.0, walkBack: 6.0, offset: 4 } },
     // 遊客：停下來仰望、拍照
     { id: 'touristPhoto', kind: 'tourist', sex: 'f', height: 1.65, outfit: { coat: [0.85, 0.82, 0.74], trousers: [0.20, 0.22, 0.30] }, backpack: [0.20, 0.35, 0.45], camera: true,
-      path: { points: [[-72, -9], [-42, -12], [-24, -17], [-56, -16]], mode: 'loop', speed: 1.0, start: 0,
+      path: { points: [[-56, -15], [-40, -12], [-24, -17], [-44, -20]], mode: 'loop', speed: 1.0, start: 0,
         dwell: [{ at: 0, sec: 8, look: [0, 40, 0], pose: 'lookUp' }, { at: 1, sec: 10, look: [0, 20, 0], pose: 'photo' }, { at: 2, sec: 6, look: [0, 30, -10], pose: 'lookUp' }] } },
     { id: 'touristPairA', kind: 'tourist', sex: 'm', height: 1.80, outfit: { coat: [0.30, 0.40, 0.25], trousers: [0.45, 0.40, 0.32], hat: 'cap', capColor: [0.80, 0.80, 0.78] }, backpack: [0.12, 0.12, 0.12],
-      path: { points: [[-122, -9], [-80, -9], [-80, -15], [-122, -15]], mode: 'loop', speed: 0.95, start: 30, side: -0.45 } },
+      path: { points: [[-124, -9], [-100, -9], [-100, -15], [-124, -15]], mode: 'loop', speed: 0.95, start: 30, side: -0.45 } },
     { id: 'touristPairB', kind: 'tourist', sex: 'f', height: 1.64, outfit: { coat: [0.55, 0.15, 0.30], trousers: [0.10, 0.10, 0.12] }, camera: true,
-      path: { points: [[-122, -9], [-80, -9], [-80, -15], [-122, -15]], mode: 'loop', speed: 0.95, start: 30, side: 0.45 } },
+      path: { points: [[-124, -9], [-100, -9], [-100, -15], [-124, -15]], mode: 'loop', speed: 0.95, start: 30, side: 0.45 } },
     // 低頭看零起點銅星、再抬頭看教堂的遊客（站在鏡頭路線旁 6 m）
     { id: 'touristZero', kind: 'tourist', sex: 'm', height: 1.75, outfit: { coat: [0.18, 0.25, 0.45], trousers: [0.55, 0.50, 0.40] }, backpack: [0.60, 0.30, 0.10],
       idle: { at: [-22.5, 7.5], face: [-21, 3], lookCycle: [[-21, 0, 3], [0, 35, 0]], period: 9 } },
@@ -695,6 +695,38 @@ const actors = {
     { id: 'catWalking', pose: 'walk', coat: [0.70, 0.45, 0.22],
       path: { points: [[-118, -49.2], [-24, -49.2]], mode: 'pingpong', speed: 0.55, start: 40 } },     // 沿主宮醫院側慢走
   ],
+  // 《巴黎聖母院》（雨果，1831）的角色
+  story: {
+    dance: { center: [-72, -1], ringRadius: 3.0, tempoBpm: 92 }, // 愛絲梅拉達與伴舞（節拍跟配樂一樣）
+    esmeralda: { id: 'esmeralda', height: 1.64, skin: [0.78, 0.58, 0.42], hair: [0.05, 0.04, 0.04],
+      outfit: { coat: [0.96, 0.93, 0.86], skirt: [0.82, 0.06, 0.10], skirtLen: 0.5, skirtFlare: 0.22, sash: [0.92, 0.70, 0.18], headband: [0.92, 0.70, 0.18] } },
+    dancers: [
+      { id: 'dancer1', height: 1.6, outfit: { coat: [0.80, 0.74, 0.62], skirt: [0.38, 0.22, 0.40], skirtLen: 0.48, skirtFlare: 0.18 } },
+      { id: 'dancer2', height: 1.62, outfit: { coat: [0.78, 0.72, 0.60], skirt: [0.55, 0.42, 0.18], skirtLen: 0.48, skirtFlare: 0.18 } },
+      { id: 'dancer3', height: 1.58, outfit: { coat: [0.80, 0.74, 0.62], skirt: [0.18, 0.38, 0.36], skirtLen: 0.48, skirtFlare: 0.18 } },
+      { id: 'dancer4', height: 1.61, outfit: { coat: [0.78, 0.72, 0.60], skirt: [0.48, 0.22, 0.14], skirtLen: 0.48, skirtFlare: 0.18 } },
+    ],
+    // 敲鐘人：躲在北塔西面「怪獸迴廊」欄杆後探頭（欄杆頂 46 m）
+    quasimodo: { id: 'quasimodo', height: 1.55, at: [0.9, 45.35, -10.5], hair: [0.55, 0.22, 0.08],
+      outfit: { coat: [0.40, 0.31, 0.20], trousers: [0.28, 0.24, 0.18], coatLen: 0.12 } },
+    // 副主教：站在玫瑰窗前的聖母露臺（教堂正面的陽台，22.5 m），與加西莫多不同處
+    frollo: { id: 'frollo', height: 1.78, at: [-0.9, 22.5, 4.4], hair: [0.35, 0.33, 0.30],
+      outfit: { coat: [0.05, 0.05, 0.06], trousers: [0.05, 0.05, 0.06], coatLen: 0.46, coatFlare: 0.15, trim: [0.40, 0.12, 0.42] } },
+    // 侍衛隊長騎白馬巡邏，兩名侍衛步行跟隨
+    phoebus: { id: 'phoebus', height: 1.82, hair: [0.75, 0.58, 0.28],
+      outfit: { coat: [0.18, 0.28, 0.62], trousers: [0.85, 0.82, 0.76], armor: [0.80, 0.68, 0.30], cape: [0.70, 0.08, 0.10] },
+      horse: { coat: [0.95, 0.94, 0.90], saddleCloth: [0.18, 0.28, 0.62] },
+      path: { points: [[-92, 13], [-52, 13], [-52, 16], [-92, 16]], mode: 'loop', speed: 1.3, start: 0 } },
+    guards: [
+      { id: 'guard1', height: 1.76, lag: 3.2, side: 0.75, outfit: { coat: [0.62, 0.10, 0.12], trousers: [0.20, 0.20, 0.22] } },
+      { id: 'guard2', height: 1.74, lag: 3.2, side: -0.75, outfit: { coat: [0.62, 0.10, 0.12], trousers: [0.20, 0.20, 0.22] } },
+    ],
+    // 遊唱詩人：在舞圈北側邊走邊彈唱
+    gringoire: { id: 'gringoire', height: 1.72, hair: [0.30, 0.20, 0.12],
+      outfit: { coat: [0.58, 0.42, 0.20], trousers: [0.22, 0.30, 0.20], hat: 'feather', hatColor: [0.20, 0.30, 0.22] },
+      path: { points: [[-86, -6], [-80, -10], [-64, -10], [-58, -6]], mode: 'pingpong', speed: 0.55, start: 0,
+        dwell: [{ at: 0, sec: 6, look: [-72, 1.2, -1], pose: 'play' }, { at: 3, sec: 6, look: [-72, 1.2, -1], pose: 'play' }] } },
+  },
   dogs: [
     { id: 'dogLeashed', size: 'medium', coat: [0.85, 0.80, 0.70], follows: 'localDogWalker', behind: 1.5, sideOffset: 0.6 },
     { id: 'dogPlaying', size: 'small', coat: [0.30, 0.20, 0.12], circle: { center: [-60, 24], radius: 5.5, speed: 3.2, phase: 1.6 } },

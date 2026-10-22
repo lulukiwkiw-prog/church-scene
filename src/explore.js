@@ -165,6 +165,7 @@ async function load() {
 // -----------------------------------------------------------------------------
 const C = LAYOUT.cathedral, WF = C.westFront, P = LAYOUT.parvis;
 const kf = (t) => LAYOUT.camera.keyframes.find((k) => k.t === t);
+const ST = LAYOUT.actors.story;
 const SPOTS = [
   { id: 'parvis', name: '廣場', pos: [-95, 1.7, 6], look: [0, 30, 0] },
   { id: 'judgment', name: '最後審判門', pos: [-12, 1.7, 0], look: [1.5, 8, 0] },
@@ -173,6 +174,10 @@ const SPOTS = [
   { id: 'rose', name: '玫瑰窗', pos: kf(48).position, look: kf(48).target, fly: true },
   { id: 'stryge', name: '沉思者', pos: kf(55).position, look: kf(55).target, fly: true },
   { id: 'pigeons', name: '孩子與鴿子', pos: [-68, 1.7, 13], look: [-50, 1, 22] },
+  { id: 'dance', name: '愛絲梅拉達', pos: [ST.dance.center[0] - 9, 1.9, ST.dance.center[1] + 6], look: [ST.dance.center[0], 1.0, ST.dance.center[1]] },
+  { id: 'quasimodo', name: '加西莫多', pos: [ST.quasimodo.at[0] - 5, ST.quasimodo.at[1] + 1.1, ST.quasimodo.at[2] + 4], look: [ST.quasimodo.at[0], ST.quasimodo.at[1] + 0.6, ST.quasimodo.at[2]] },
+  { id: 'frollo', name: '法羅路', pos: [ST.frollo.at[0] - 5, ST.frollo.at[1] + 1.3, ST.frollo.at[2] + 4], look: [ST.frollo.at[0], ST.frollo.at[1] + 1.1, ST.frollo.at[2]] },
+  { id: 'phoebus', name: '菲比斯', pos: [ST.phoebus.path.points[0][0] + 6, 2.2, ST.phoebus.path.points[0][1] - 7], look: [ST.phoebus.path.points[0][0] + 14, 1.5, ST.phoebus.path.points[0][1] + 1] },
   { id: 'charlemagne', name: '查理曼像', pos: [P.charlemagne.x - 9, 1.7, P.charlemagne.z - 6], look: [P.charlemagne.x, 4.5, P.charlemagne.z] },
   { id: 'south', name: '南側', pos: [C.transept.crossing.cx - 20, 1.7, 52], look: [C.transept.crossing.cx, 22, 24] },
   { id: 'apse', name: '後殿', pos: [C.apse.eastTipX + 30, 1.7, 30], look: [C.apse.cx, 25, 0] },

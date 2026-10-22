@@ -87,8 +87,8 @@ function trackYaw(track, t, w = 0.6) {
 function buildPerson(def, M, rng) {
   const h = def.height, child = def.kind === 'child', elder = def.kind === 'elder';
   const o = def.outfit;
-  const skinTone = rng.pick([[0.93, 0.76, 0.64], [0.85, 0.66, 0.52], [0.66, 0.47, 0.34], [0.45, 0.31, 0.22], [0.96, 0.82, 0.72]]);
-  const hairCol = elder ? rng.pick([[0.85, 0.85, 0.83], [0.70, 0.70, 0.70]]) : rng.pick([[0.12, 0.09, 0.07], [0.32, 0.20, 0.12], [0.55, 0.40, 0.22], [0.05, 0.05, 0.05]]);
+  const skinTone = def.skin || rng.pick([[0.93, 0.76, 0.64], [0.85, 0.66, 0.52], [0.66, 0.47, 0.34], [0.45, 0.31, 0.22], [0.96, 0.82, 0.72]]);
+  const hairCol = def.hair || (elder ? rng.pick([[0.85, 0.85, 0.83], [0.70, 0.70, 0.70]]) : rng.pick([[0.12, 0.09, 0.07], [0.32, 0.20, 0.12], [0.55, 0.40, 0.22], [0.05, 0.05, 0.05]]));
   const shoe = [0.08, 0.07, 0.06];
   const legCol = o.trousers || [0.14, 0.14, 0.16];
 
@@ -102,14 +102,19 @@ function buildPerson(def, M, rng) {
   part(hips, sphere(0.09 * h, 12, 8), M.cloth, legCol, [0, 0, 0], null, [1.1, 0.6, 0.8]);
 
   const torso = piv(hips, 0, 0, 0);
-  const coatLen = def.kind === 'elder' || def.kind === 'local' ? 0.16 * h : 0.05 * h;
+  const coatLen = o.coatLen != null ? o.coatLen * h : def.kind === 'elder' || def.kind === 'local' ? 0.16 * h : 0.05 * h;
+  const coatFlare = (o.coatFlare || 0.095) * h; // 長袍下擺半徑
   // 外套：由肩到臀下方的旋轉體（略寬、下擺張開）
   const coatProfile = [[0.001, torsoL + 0.02 * h], [0.06 * h, torsoL + 0.01 * h], [0.085 * h, torsoL - 0.05 * h], [0.082 * h, torsoL * 0.5],
-    [0.085 * h, 0.02 * h], [0.095 * h, -coatLen]].map(([r, y]) => new THREE.Vector2(r, y));
+    [0.085 * h, 0.02 * h], [coatFlare, -coatLen]].map(([r, y]) => new THREE.Vector2(r, y));
   part(torso, new THREE.LatheGeometry(coatProfile, 14), M.cloth, o.coat, [0, 0, 0], null, [1.18, 1, 0.78]);
+  let skirt = null;
   if (o.skirt) {
-    const sk = child ? 0.16 * h : 0.33 * h;
-    part(hips, new THREE.CylinderGeometry(0.085 * h, 0.13 * h, sk, 14, 1, true), M.cloth, o.skirt, [0, -sk / 2 + 0.02 * h, 0]);
+    const sk = (o.skirtLen || (child ? 0.16 : 0.33)) * h, flare = (o.skirtFlare || 0.13) * h;
+    const g = new THREE.CylinderGeometry(0.085 * h, flare, sk, 18, 2, true);
+    g.translate(0, -sk / 2 + 0.02 * h, 0); // 樞紐在腰：張開時從腰往外擺
+    skirt = part(hips, g, M.cloth, o.skirt);
+    skirt.material = M.clothDouble;
   }
   if (o.scarf && o.hat !== 'scarf') part(torso, new THREE.TorusGeometry(0.045 * h, 0.018 * h, 6, 12), M.cloth, o.scarf, [0, torsoL - 0.005 * h, 0], [Math.PI / 2, 0, 0]);
   if (def.backpack) part(torso, box(0.17 * h, 0.2 * h, 0.08 * h), M.cloth, def.backpack, [0, torsoL * 0.62, -0.1 * h]);
@@ -164,7 +169,7 @@ function buildPerson(def, M, rng) {
   if (def.camera) part(R.hand, box(0.11, 0.07, 0.06), M.cloth, [0.06, 0.06, 0.07], [-0.03, -0.02, 0.04]);
   if (def.book) part(R.hand, box(0.16, 0.02, 0.22), M.cloth, [0.55, 0.12, 0.10], [-0.07, -0.02, 0.05], [0.3, 0, 0]);
 
-  const rig = { root, hips, torso, neck, head, arms, legs, h, L, thighL, shinL };
+  const rig = { root, hips, torso, neck, head, arms, legs, h, L, thighL, shinL, skirt, skinTone, hairCol };
 
   /** 姿勢：phase 步伐相位、amp 擺幅、run 跑步 */
   rig.walk = (phase, amp, run = false) => {
@@ -295,6 +300,61 @@ function buildPigeon(def, M, r) {
 }
 
 // -----------------------------------------------------------------------------
+// 白馬（菲比斯的坐騎）
+// -----------------------------------------------------------------------------
+function buildHorse(def, M) {
+  const col = def.coat, shade = col.map((v) => v * 0.82), hoof = [0.16, 0.14, 0.12];
+  const root = new THREE.Group();
+  root.name = 'horse';
+  const H = 1.22; // 背部中心高（馬肩高約 1.6 m）
+  const body = piv(root, 0, H, 0);
+  // 身體：前後長約 2.1 m、胸腔厚
+  part(body, new THREE.CapsuleGeometry(0.32, 1.45, 6, 16), M.fur, col, [0, 0, 0], [Math.PI / 2, 0, 0], [0.92, 1, 1.22]);
+  part(body, sphere(0.36, 14, 10), M.fur, col, [0, 0.04, -0.72], null, [0.95, 1.05, 1]); // 臀部
+  part(body, sphere(0.36, 14, 10), M.fur, col, [0, 0.06, 0.68], null, [0.9, 1.1, 1]); // 胸
+  part(body, box(0.7, 0.5, 0.85), M.clothDouble, def.saddleCloth, [0, 0.07, 0.05]); // 馬衣
+  part(body, box(0.42, 0.1, 0.55), M.cloth, [0.30, 0.18, 0.10], [0, 0.39, 0.05]); // 馬鞍
+  const neck = piv(body, 0, 0.22, 0.88);
+  neck.rotation.x = 0.55; // 頸部斜向前上
+  const ng = new THREE.CapsuleGeometry(0.17, 0.6, 4, 12); ng.translate(0, 0.4, 0);
+  part(neck, ng, M.fur, col, [0, 0, 0], null, [0.75, 1, 1.25]);
+  part(neck, box(0.06, 0.7, 0.14), M.fur, shade, [0, 0.42, -0.16]); // 鬃毛
+  const head = piv(neck, 0, 0.82, 0.02);
+  head.rotation.x = 1.75; // 頭往前下
+  const hg = new THREE.CapsuleGeometry(0.12, 0.42, 4, 12); hg.translate(0, 0.27, 0);
+  part(head, hg, M.fur, col, [0, 0, 0], null, [0.8, 1, 1.1]);
+  for (const s of [-1, 1]) {
+    part(head, new THREE.ConeGeometry(0.04, 0.13, 5), M.fur, col, [s * 0.06, -0.02, -0.1], [-1.2, 0, 0]);
+    part(head, sphere(0.022, 6, 4), M.cloth, [0.04, 0.03, 0.03], [s * 0.1, 0.12, 0.05]);
+  }
+  const legs = [];
+  for (const [fx, fz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
+    const hip = piv(body, fx * 0.2, -0.18, fz * 0.72);
+    part(hip, limb(0.1, 0.5), M.fur, col);
+    const knee = piv(hip, 0, -0.48, 0);
+    part(knee, limb(0.055, 0.52), M.fur, col);
+    part(knee, cyl(0.065, 0.075, 0.09, 8), M.cloth, hoof, [0, -0.52, 0]);
+    legs.push({ hip, knee, front: fz > 0, side: fx });
+  }
+  const tail = piv(body, 0, 0.18, -1.02);
+  tail.rotation.x = 2.75;
+  part(tail, new THREE.ConeGeometry(0.09, 0.75, 6).translate(0, -0.375, 0), M.fur, shade);
+  const saddle = piv(body, 0, 0.44, 0.05);
+  const rig = { root, body, neck, head, legs, tail, saddle };
+  rig.walk = (phase, amp) => {
+    for (const lg of legs) {
+      const off = (lg.front === (lg.side > 0)) ? 0 : Math.PI;
+      const sn = Math.sin(phase + off);
+      lg.hip.rotation.set(-amp * sn, 0, 0);
+      lg.knee.rotation.set((lg.front ? -1 : 1) * amp * 1.1 * Math.max(0, Math.cos(phase + off)), 0, 0);
+    }
+    body.position.y = H + 0.02 * Math.cos(2 * phase);
+    neck.rotation.x = 0.75 + 0.06 * Math.sin(2 * phase); // 走路時點頭
+  };
+  return rig;
+}
+
+// -----------------------------------------------------------------------------
 // 主程式
 // -----------------------------------------------------------------------------
 export function build({ layout, materials, variant, rng }) {
@@ -303,6 +363,7 @@ export function build({ layout, materials, variant, rng }) {
   group.name = 'actors';
   const M = {
     cloth: variant('fabric', { vertexColors: true }),
+    clothDouble: variant('fabric', { vertexColors: true, side: THREE.DoubleSide }), // 裙子、披風（看得到內側）
     skin: variant('skin', { vertexColors: true }),
     feather: variant('feather', { vertexColors: true }),
     fur: variant('fur', { vertexColors: true }),
@@ -574,6 +635,223 @@ export function build({ layout, materials, variant, rng }) {
     update(0);
     updaters.push(update);
   });
+
+  // ---------------- 《巴黎聖母院》的角色 ----------------
+  const ST = A.story;
+  if (ST) {
+    const D = ST.dance.center, BEAT_S = 60 / ST.dance.tempoBpm;
+    const danceCenter = (t) => [D[0] + 0.9 * Math.sin(t * 0.45), D[1] + 0.6 * Math.sin(t * 0.9)];
+    const relYaw = (P, yaw, x, z) => mod(yawOf(x - P.x, z - P.z) - yaw + Math.PI, TAU) - Math.PI;
+    const mk = (def, kind, sex) => {
+      const rig = buildPerson({ ...def, kind, sex }, M, rng(`actors/story/${def.id}`));
+      group.add(rig.root);
+      return rig;
+    };
+
+    // 愛絲梅拉達：主角，紅色長裙、金色腰帶、手拿鈴鼓
+    const es = mk(ST.esmeralda, 'local', 'f');
+    {
+      const h = es.h;
+      part(es.torso, new THREE.TorusGeometry(0.088 * h, 0.022 * h, 6, 16), M.cloth, ST.esmeralda.outfit.sash, [0, 0.03 * h, 0], [Math.PI / 2, 0, 0], [1.15, 0.8, 1]);
+      part(es.head, new THREE.TorusGeometry(es.h * 0.066, 0.008 * h, 5, 16), M.cloth, ST.esmeralda.outfit.headband, [0, 0.085 * h, 0], [Math.PI / 2 - 0.2, 0, 0]);
+      for (const s of [-1, 1]) part(es.head, sphere(0.012 * h, 6, 4), M.cloth, ST.esmeralda.outfit.sash, [s * 0.062 * h, 0.05 * h, 0]); // 耳環
+      part(es.head, box(0.13 * h, 0.2 * h, 0.05 * h), M.cloth, ST.esmeralda.hair, [0, -0.02 * h, -0.05 * h]); // 長髮
+      const tamb = part(es.arms[1].hand, cyl(0.12, 0.12, 0.045, 16), M.cloth, [0.78, 0.62, 0.40], [0, -0.06, 0.04], [0, 0, Math.PI / 2]);
+      tamb.name = 'tambourine';
+    }
+    updaters.push((t) => {
+      const beat = t / BEAT_S;
+      const [x, z] = danceCenter(t);
+      es.root.position.set(x, 0, z);
+      // 每 8 拍的最後 2 拍轉一圈
+      const b8 = mod(beat, 8), spin = b8 > 6 ? smooth((b8 - 6) / 2) : 0;
+      es.root.rotation.y = -Math.PI / 2 + 0.8 * Math.sin(t * 0.35) + spin * TAU;
+      es.walk(beat * Math.PI, 0.28);
+      es.hips.position.y += 0.02 * Math.abs(Math.sin(beat * Math.PI));
+      es.torso.rotation.set(-0.05, 0.15 * Math.sin(beat * Math.PI / 2), 0.12 * Math.sin(beat * Math.PI));
+      const swap = Math.floor(beat / 8) % 2 === 1; // 每 8 拍換手
+      const up = es.arms[swap ? 0 : 1], sweep = es.arms[swap ? 1 : 0];
+      up.sh.rotation.set(-2.7 + 0.15 * Math.sin(beat * TAU), 0, up.s * 0.25);
+      up.el.rotation.set(-0.35, 0, 0);
+      sweep.sh.rotation.set(-1.1 + 0.6 * Math.sin(beat * Math.PI / 2), 0, sweep.s * (0.7 + 0.3 * Math.sin(beat * Math.PI / 2)));
+      sweep.el.rotation.set(-0.3, 0, 0);
+      const flare = 1 + 0.4 * spin * (1 - spin) * 4 + 0.08 * Math.abs(Math.sin(beat * Math.PI));
+      es.skirt.scale.set(flare, 1 - 0.1 * (flare - 1), flare);
+      es.look(0.3 * Math.sin(beat * Math.PI / 4), -0.1);
+    });
+
+    // 4 名伴舞：繞著愛絲梅拉達慢慢轉圈，服裝較低調
+    ST.dancers.forEach((def, i) => {
+      const d = mk(def, 'local', 'f');
+      updaters.push((t) => {
+        const beat = t / BEAT_S;
+        const [cx, cz] = danceCenter(t);
+        const th = i * Math.PI / 2 + 0.22 * t, r = ST.dance.ringRadius + 0.35 * Math.sin(t * 0.7 + i);
+        const x = cx + Math.cos(th) * r, z = cz + Math.sin(th) * r;
+        d.root.position.set(x, 0, z);
+        d.root.rotation.y = yawOf(cx - x, cz - z) + 0.35 * Math.sin(beat * Math.PI / 2 + i);
+        d.walk(beat * Math.PI + i, 0.22);
+        d.torso.rotation.z = 0.1 * Math.sin(beat * Math.PI + i);
+        const clap = mod(beat + i, 4) < 0.5; // 每 4 拍拍一次手
+        for (const a of d.arms) {
+          if (clap) { a.sh.rotation.set(-1.9, 0, -a.s * 0.25); a.el.rotation.set(-0.5, 0, 0); }
+          else { a.sh.rotation.set(-1.6 + 0.9 * Math.sin(beat * Math.PI / 2 + i + (a.s > 0 ? 0 : Math.PI)), 0, a.s * 0.5); a.el.rotation.set(-0.4, 0, 0); }
+        }
+        if (d.skirt) d.skirt.scale.set(1 + 0.08 * Math.abs(Math.sin(beat * Math.PI)), 1, 1 + 0.08 * Math.abs(Math.sin(beat * Math.PI)));
+        d.look(0, -0.05);
+      });
+    });
+
+    // 加西莫多：駝背、肩膀一高一低，趴在北塔欄杆後偷看，不時縮回去躲
+    {
+      const q = mk(ST.quasimodo, 'local', 'm');
+      const h = q.h;
+      part(q.torso, sphere(0.11 * h, 12, 10), M.cloth, ST.quasimodo.outfit.coat, [0.035 * h, 0.24 * h, -0.075 * h], null, [1.25, 1, 1]); // 駝背
+      q.arms[0].sh.position.y -= 0.035 * h;
+      q.arms[1].sh.position.y += 0.01 * h;
+      part(q.head, sphere(q.h * 0.02, 6, 4), M.skin, q.skinTone, [-0.035 * h, 0.1 * h, 0.05 * h]); // 臉上的疣
+      const A0 = ST.quasimodo.at;
+      updaters.push((t) => {
+        q.root.position.set(A0[0], A0[1], A0[2]);
+        const [ex, ez] = danceCenter(t);
+        q.root.rotation.y = yawOf(ex - A0[0], ez - A0[2]);
+        q.stand(t);
+        const cyc = mod(t, 11), hide = cyc > 8.5 ? Math.sin(((cyc - 8.5) / 2.5) * Math.PI) : 0; // 縮下去躲一下
+        q.root.position.y = A0[1] - 0.45 * hide;
+        q.torso.rotation.set(0.3 + 0.5 * hide, 0.1, 0.12);
+        for (const a of q.arms) { a.sh.rotation.set(-1.15 - 0.2 * hide, 0, a.s * 0.25); a.el.rotation.set(-0.55, 0, 0); } // 扶著欄杆
+        for (const lg of q.legs) { lg.th.rotation.set(-0.35 - 0.6 * hide, 0, lg.s * 0.1); lg.kn.rotation.set(0.5 + 1.0 * hide, 0, 0); }
+        q.lookAt([ex, 1.3, ez]);
+        q.head.rotation.x -= 0.3; // 駝背時頭要往上抬才看得到廣場
+      });
+    }
+
+    // 副主教法羅路：黑色長袍、紫色腰帶與小圓帽，站在聖母露臺俯視
+    {
+      const f = mk(ST.frollo, 'local', 'm');
+      const h = f.h, trim = ST.frollo.outfit.trim;
+      part(f.torso, new THREE.TorusGeometry(0.088 * h, 0.014 * h, 6, 16), M.cloth, trim, [0, 0.04 * h, 0], [Math.PI / 2, 0, 0], [1.15, 0.8, 1]);
+      part(f.head, new THREE.SphereGeometry(0.066 * h, 12, 6, 0, TAU, 0, 1.0), M.cloth, trim, [0, 0.075 * h, -0.01 * h]);
+      part(f.torso, box(0.06 * h, 0.03 * h, 0.01 * h), M.cloth, [0.95, 0.95, 0.95], [0, 0.29 * h, 0.075 * h]); // 白領
+      const A0 = ST.frollo.at;
+      updaters.push((t) => {
+        f.root.position.set(A0[0], A0[1], A0[2]);
+        const [ex, ez] = danceCenter(t);
+        f.root.rotation.y = yawOf(ex - A0[0], ez - A0[2]);
+        f.stand(t);
+        const cyc = mod(t, 16);
+        const grip = smooth((cyc - 5) / 1.5) * (1 - smooth((cyc - 10) / 1.5)); // 抓住欄杆
+        const away = cyc > 12.5 && cyc < 15 ? Math.sin(((cyc - 12.5) / 2.5) * Math.PI) : 0; // 痛苦地別過頭
+        for (const a of f.arms) {
+          a.sh.rotation.set(lerp(-0.35, -0.95, grip), 0, a.s * lerp(-0.38, 0.12, grip)); // 平常雙手交握在身前
+          a.el.rotation.set(lerp(-1.35, -0.35, grip), 0, 0);
+        }
+        f.arms[1].sh.rotation.x -= 0.6 * away; f.arms[1].el.rotation.x -= 0.6 * away; // 手按胸口
+        f.torso.rotation.x = 0.12 + 0.12 * grip;
+        f.lookAt([ex, 1.3, ez]);
+        f.head.rotation.y += 0.9 * away;
+        f.head.rotation.x -= 0.25 * away;
+      });
+    }
+
+    // 侍衛隊長菲比斯：騎白馬巡邏，臉一直看著愛絲梅拉達
+    const ph = ST.phoebus;
+    const track = makeTrack(ph.path);
+    const horse = buildHorse(ph.horse, M);
+    group.add(horse.root);
+    const pb = buildPerson({ ...ph, kind: 'tourist', sex: 'm' }, M, rng(`actors/story/${ph.id}`));
+    horse.saddle.add(pb.root);
+    {
+      const h = pb.h;
+      part(pb.torso, sphere(0.1 * h, 12, 8), M.cloth, ph.outfit.armor, [0, 0.2 * h, 0.02 * h], null, [1.15, 1.1, 0.75]); // 胸甲
+      part(pb.torso, box(0.26 * h, 0.4 * h, 0.012 * h), M.clothDouble, ph.outfit.cape, [0, 0.12 * h, -0.075 * h], [0.12, 0, 0]); // 披風
+      part(pb.head, new THREE.SphereGeometry(0.07 * h, 12, 8, 0, TAU, 0, Math.PI / 2), M.cloth, ph.outfit.armor, [0, 0.075 * h, 0]); // 頭盔
+      part(pb.head, new THREE.ConeGeometry(0.02 * h, 0.12 * h, 6), M.cloth, ph.outfit.cape, [0, 0.19 * h, -0.02 * h], [-0.4, 0, 0]); // 羽飾
+      pb.root.position.set(0, -pb.L, 0);
+    }
+    const hStride = 1.7;
+    updaters.push((t) => {
+      const s = track.at(t);
+      const yaw = trackYaw(track, t, 1.0) ?? 0;
+      horse.root.position.set(s.x, 0, s.z);
+      horse.root.rotation.y = yaw;
+      horse.walk((s.dist / hStride) * TAU, 0.38);
+      horse.tail.rotation.set(2.75, 0.15 * Math.sin(t * 1.3), 0);
+      // 騎姿：雙腿跨在馬背兩側
+      for (const lg of pb.legs) { lg.th.rotation.set(-1.25, 0, lg.s * 0.5); lg.kn.rotation.set(1.35, 0, 0); lg.ft.rotation.set(0, 0, 0); }
+      pb.hips.position.y = pb.L + 0.01 * Math.cos((s.dist / hStride) * TAU * 2);
+      for (const a of pb.arms) { a.sh.rotation.set(-0.55, 0, a.s * 0.15); a.el.rotation.set(-0.9, 0, 0); } // 握韁繩
+      const [ex, ez] = danceCenter(t);
+      const rel = relYaw(horse.root.position, yaw, ex, ez);
+      const tw = clamp(rel * 0.45, -0.7, 0.7);
+      pb.torso.rotation.set(0, tw, 0);
+      pb.look(rel - tw, 0.15);
+    });
+
+    // 兩名侍衛：步行跟在後面，手持長戟
+    for (const g of ST.guards) {
+      const gr = mk(g, 'tourist', 'm');
+      const h = gr.h;
+      part(gr.head, new THREE.SphereGeometry(0.072 * h, 12, 8, 0, TAU, 0, Math.PI / 2), M.cloth, [0.55, 0.56, 0.58], [0, 0.07 * h, 0]);
+      part(gr.head, cyl(0.1 * h, 0.1 * h, 0.006 * h, 14), M.cloth, [0.55, 0.56, 0.58], [0, 0.075 * h, 0]); // 帽簷
+      // 長戟：抵銷手臂角度（肩 -0.35、肘 -1.2）讓它直立
+      const hal = piv(gr.arms[1].hand, 0, -0.02, 0.03);
+      hal.rotation.x = 1.55;
+      part(hal, cyl(0.016, 0.016, 2.2, 6), M.cloth, [0.32, 0.22, 0.12], [0, 0.55, 0]);
+      part(hal, box(0.02, 0.28, 0.16), M.cloth, [0.62, 0.63, 0.66], [0, 1.55, 0.06]); // 戟刃
+      const stride = 1.35 * h / 1.7;
+      updaters.push((t) => {
+        const lagT = g.lag / ph.path.speed;
+        const s = track.at(t - lagT);
+        const yaw = trackYaw(track, t - lagT, 1.0) ?? 0;
+        gr.root.position.set(s.x + Math.cos(yaw) * g.side, 0, s.z - Math.sin(yaw) * g.side);
+        gr.root.rotation.y = yaw;
+        gr.walk((s.dist / stride) * TAU, 0.38);
+        gr.arms[1].sh.rotation.set(-0.35, 0, 0.1); gr.arms[1].el.rotation.set(-1.2, 0, 0); // 長戟直立
+        const [ex, ez] = danceCenter(t);
+        const glance = smooth((Math.sin(t * 0.17 + g.side * 3) - 0.6) * 4);
+        gr.look(glance * clamp(relYaw(gr.root.position, yaw, ex, ez), -1, 1), 0.05);
+      });
+    }
+
+    // 遊唱詩人葛林果利：戴羽毛帽、抱著魯特琴邊走邊彈唱
+    {
+      const gg = ST.gringoire;
+      const g = mk(gg, 'local', 'm');
+      const h = g.h;
+      part(g.head, cyl(0.1 * h, 0.1 * h, 0.012 * h, 14), M.cloth, gg.outfit.hatColor, [0, 0.12 * h, 0]);
+      part(g.head, new THREE.SphereGeometry(0.06 * h, 12, 6, 0, TAU, 0, Math.PI / 2), M.cloth, gg.outfit.hatColor, [0, 0.12 * h, 0]);
+      part(g.head, new THREE.ConeGeometry(0.012 * h, 0.16 * h, 5), M.cloth, [0.92, 0.88, 0.80], [0.05 * h, 0.17 * h, -0.04 * h], [-0.6, 0, -0.5]); // 羽毛
+      const lute = piv(g.torso, 0.02 * h, 0.13 * h, 0.1 * h);
+      lute.rotation.set(0, 0, 0.9);
+      part(lute, sphere(0.1 * h, 12, 10), M.cloth, [0.55, 0.32, 0.12], [0, 0, 0], null, [1, 1.25, 0.45]);
+      part(lute, box(0.03 * h, 0.26 * h, 0.02 * h), M.cloth, [0.25, 0.15, 0.06], [0, 0.22 * h, 0]);
+      part(lute, sphere(0.025 * h, 8, 6), M.cloth, [0.1, 0.07, 0.04], [0, 0.03 * h, 0.044 * h]); // 音孔
+      const gtrack = makeTrack(gg.path);
+      const stride = 1.1 * h / 1.7;
+      const play = (t) => {
+        const L = g.arms[0], R = g.arms[1];
+        L.sh.rotation.set(-0.85, 0, -0.55); L.el.rotation.set(-1.25, 0, 0); // 按弦
+        R.sh.rotation.set(-0.45, 0, 0.35); R.el.rotation.set(-1.55 + 0.18 * Math.sin(t * 14), 0, 0); // 撥弦
+        g.head.rotation.z = 0.08 * Math.sin((t / BEAT_S) * Math.PI); // 跟著拍子擺頭
+      };
+      updaters.push((t) => {
+        const s = gtrack.at(t);
+        g.root.position.set(s.x, 0, s.z);
+        if (s.moving) {
+          g.root.rotation.y = trackYaw(gtrack, t) ?? g.root.rotation.y;
+          g.walk((s.dist / stride) * TAU, 0.3);
+        } else {
+          const d = s.dwell;
+          g.root.rotation.y = yawOf(d.look[0] - s.x, d.look[2] - s.z);
+          g.stand(t);
+          g.torso.rotation.z = 0.06 * Math.sin((t / BEAT_S) * Math.PI);
+        }
+        play(t);
+        g.look(0.25 * Math.sin(t * 0.4), -0.05);
+      });
+    }
+  }
 
   group.userData.update = (t) => { for (const u of updaters) u(t); };
   group.userData.update(0);
