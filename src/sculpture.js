@@ -7,6 +7,8 @@ import { Mesher, facing, transM, scaleM } from './sculpture/geo.js';
 import { figure, spec, SEAT_HEIGHT } from './sculpture/figure.js';
 import { gargoyle, chimera, stryge, evangelistBeast, horse, beastHead } from './sculpture/beasts.js';
 import { sdfCreature } from './sculpture/sdfbeast.js';
+import { sdfGargoyle, headMatrix } from './sculpture/sdfgargoyle.js';
+import { addMesh } from './sculpture/sdfhuman.js';
 import {
   westPortalFrame, transeptPortalFrame, placeFigure, tympanum,
   archivoltSlots, archivoltMatrix, ARCHIVOLT_THEMES, archivoltTemplate,
@@ -211,7 +213,11 @@ export function build({ layout, materials, variant, rng }) {
   gKinds.forEach((o, v) => {
     if (!gInst[v].length) return;
     const T = new Mesher();
-    gargoyle(T, { ...o, nu: 10, headNu: 12 });
+    const G = sdfGargoyle(o.kind);
+    addMesh(T, G.body);
+    T.push(headMatrix());
+    addMesh(T, G.head);
+    T.pop();
     const im = new THREE.InstancedMesh(T.toGeometry(), stone, gInst[v].length);
     gInst[v].forEach((m, i) => im.setMatrixAt(i, m));
     im.instanceMatrix.needsUpdate = true;

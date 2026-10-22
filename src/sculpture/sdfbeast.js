@@ -96,7 +96,7 @@ function headOx(x, y, z) {
   d = smin(d, cone(ax, y, z, 0.1, 0.03, -0.03, 0.2, 0.012, -0.045, 0.026, 0.01), 0.012);      // 耳
   return d - 0.0018 * (noise3(x * 120, y * 120, z * 120) - 0.5) * 2;
 }
-const HEADS = { lion: headLion, goat: headGoat, eagle: headEagle, dog: headDog, ox: headOx };
+export const HEADS = { lion: headLion, goat: headGoat, eagle: headEagle, dog: headDog, ox: headOx };
 
 function creatureField(x, y, z, P) {
   const G = (cx, cy, cz, R, fn) => { const lb = hyp(x - cx, y - cy, z - cz) - R; return lb > 0.12 ? lb : fn(); };
