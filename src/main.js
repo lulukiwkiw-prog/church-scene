@@ -24,7 +24,7 @@ import { installAtmosphere } from './render/atmosphere.js';
 import { createSunLighting } from './render/lighting.js';
 import { createPost } from './render/post.js';
 
-const MODULES = ['structure', 'facades', 'roofs', 'sculpture', 'environment'];
+const MODULES = ['structure', 'facades', 'roofs', 'sculpture', 'environment', 'actors'];
 
 const q = new URLSearchParams(location.search);
 const RENDER = q.get('render') === '1';
@@ -105,6 +105,7 @@ const post = createPost(renderer, scene, camera, W, H, { samples: q.get('msaa') 
 // -----------------------------------------------------------------------------
 const stats = { modules: {}, errors: [], frames: FRAMES, fps: FPS, duration: DURATION, w: W, h: H };
 const waterTextures = new Map(); // texture → flow
+const animated = []; // 會動的模組：group.userData.update(t)
 
 async function loadModules() {
   const world = new THREE.Group();
@@ -116,6 +117,7 @@ async function loadModules() {
       const group = mod.build({ layout: LAYOUT, materials, variant, rng });
       if (!group || !group.isObject3D) throw new Error('build() 沒有回傳 Object3D');
       world.add(group);
+      if (group.userData.update) animated.push(group.userData.update);
       let tris = 0;
       group.traverse((o) => {
         if (o.isMesh && o.geometry) {
@@ -188,6 +190,7 @@ function setTime(t) {
     tex.offset.set(-(ox - Math.floor(ox)), -(oy - Math.floor(oy)));
   }
 
+  for (const u of animated) u(t); // 人物與動物（只由影格時間決定）
   lighting.update(camera);
 }
 

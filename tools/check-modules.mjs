@@ -17,6 +17,7 @@ export const BUDGETS = {
   roofs: 600_000,
   sculpture: 2_500_000,
   environment: 1_000_000,
+  actors: 200_000,
 };
 const BUILD_MODULES = Object.keys(BUDGETS);
 const names = process.argv.slice(2).length ? process.argv.slice(2) : BUILD_MODULES;
@@ -65,6 +66,12 @@ for (const name of names) {
   if (!(a instanceof THREE.Group)) { fail(`${name}: build() 必須回傳 THREE.Group`); continue; }
   const da = digest(a), db = digest(b);
   if (da.hash !== db.hash) fail(`${name}: 兩次 build 結果不同（隨機數沒有固定種子？）`);
+  // 會動的模組：同一時間點的姿勢也必須完全相同
+  if (a.userData.update) {
+    for (const t of [12.3, 47.9]) { a.userData.update(t); b.userData.update(t); }
+    b.userData.update(5.5); b.userData.update(47.9); // 呼叫順序不同也要得到同樣結果
+    if (digest(a).hash !== digest(b).hash) fail(`${name}: update(t) 不是只由 t 決定`);
+  }
   const budget = BUDGETS[name];
   if (budget && da.tris > budget) fail(`${name}: 三角形 ${da.tris.toLocaleString()} 超過預算 ${budget.toLocaleString()}`);
   console.log(`  三角形 ${Math.round(da.tris).toLocaleString()} / ${budget ? budget.toLocaleString() : '-'}，build ${ms.toFixed(0)} ms，hash ${da.hash.slice(0, 10)}`);

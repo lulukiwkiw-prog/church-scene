@@ -18,6 +18,7 @@ import * as facades from './facades.js';
 import * as roofs from './roofs.js';
 import * as sculpture from './sculpture.js';
 import * as environment from './environment.js';
+import * as actors from './actors.js';
 
 const MODULES = [
   ['structure', '牆體與飛扶壁', structure],
@@ -25,6 +26,7 @@ const MODULES = [
   ['roofs', '屋頂與尖塔', roofs],
   ['sculpture', '雕像與浮雕', sculpture],
   ['environment', '廣場、樹與塞納河', environment],
+  ['actors', '行人、鴿子、貓與狗', actors],
 ];
 
 const $ = (id) => document.getElementById(id);
@@ -79,6 +81,7 @@ scene.add(camera);
 
 let sky, lighting, post;
 const waterTextures = new Map();
+const animated = [];
 
 function makePost() {
   const q = QUALITY[quality];
@@ -123,7 +126,9 @@ async function load() {
     progress(label);
     await nextPaint();
     try {
-      world.add(mod.build({ layout: LAYOUT, materials, variant, rng }));
+      const g = mod.build({ layout: LAYOUT, materials, variant, rng });
+      world.add(g);
+      if (g.userData.update) animated.push(g.userData.update);
     } catch (e) {
       console.error(`[${name}]`, e);
     }
@@ -164,6 +169,7 @@ const SPOTS = [
   { id: 'kings', name: '國王廊', pos: kf(41).position, look: kf(41).target, fly: true },
   { id: 'rose', name: '玫瑰窗', pos: kf(48).position, look: kf(48).target, fly: true },
   { id: 'stryge', name: '沉思者', pos: kf(55).position, look: kf(55).target, fly: true },
+  { id: 'pigeons', name: '孩子與鴿子', pos: [-68, 1.7, 13], look: [-50, 1, 22] },
   { id: 'charlemagne', name: '查理曼像', pos: [P.charlemagne.x - 9, 1.7, P.charlemagne.z - 6], look: [P.charlemagne.x, 4.5, P.charlemagne.z] },
   { id: 'south', name: '南側', pos: [C.transept.crossing.cx - 20, 1.7, 52], look: [C.transept.crossing.cx, 22, 24] },
   { id: 'apse', name: '後殿', pos: [C.apse.eastTipX + 30, 1.7, 30], look: [C.apse.cx, 25, 0] },
@@ -430,6 +436,7 @@ function frame() {
     const ox = flow[0] * elapsed * tex.repeat.x, oy = flow[1] * elapsed * tex.repeat.y;
     tex.offset.set(-(ox - Math.floor(ox)), -(oy - Math.floor(oy)));
   }
+  for (const u of animated) u(elapsed);
   lighting.update(camera);
   post.composer.render(dt);
 

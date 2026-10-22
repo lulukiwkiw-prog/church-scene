@@ -647,6 +647,61 @@ const parvis = {
 };
 
 // -----------------------------------------------------------------------------
+// 活動物件（30 個）：人物 12、鴿子 14、貓 2、狗 2
+// 動作只由時間 t 決定（影片確定性），路線避開鏡頭路線（廣場中軸 z ≈ 0–14）。
+// path：折線；loop = 首尾相接、pingpong = 來回；dwell = 在某點停留秒數；speed 公尺/秒
+// -----------------------------------------------------------------------------
+const actors = {
+  people: [
+    { id: 'elderMan', kind: 'elder', sex: 'm', height: 1.68, outfit: { coat: [0.22, 0.20, 0.17], trousers: [0.15, 0.15, 0.17], hat: 'beret' }, cane: true,
+      path: { points: [[-110, -30], [-42, -30], [-42, -21], [-110, -21]], mode: 'loop', speed: 0.75, start: 0 } },
+    { id: 'elderWoman', kind: 'elder', sex: 'f', height: 1.58, outfit: { coat: [0.35, 0.10, 0.12], skirt: [0.12, 0.12, 0.14], hat: 'scarf', scarf: [0.55, 0.48, 0.30] }, handbag: true,
+      path: { points: [[-116, 35], [-32, 35], [-32, 32], [-116, 32]], mode: 'loop', speed: 0.7, start: 60 } },
+    // 兩個孩子繞圈追逐、一隻小狗跟著跑
+    { id: 'childA', kind: 'child', sex: 'm', height: 1.18, outfit: { coat: [0.80, 0.25, 0.15], trousers: [0.15, 0.22, 0.40] },
+      circle: { center: [-60, 24], radius: 4.0, speed: 2.6, phase: 0 } },
+    { id: 'childB', kind: 'child', sex: 'f', height: 1.10, outfit: { coat: [0.95, 0.75, 0.20], skirt: [0.20, 0.35, 0.55] },
+      circle: { center: [-60, 24], radius: 4.0, speed: 2.6, phase: -0.9 } },
+    // 衝進鴿群又走回來的孩子（每 20 秒一次，鴿子 A 群隨之起飛）
+    { id: 'childC', kind: 'child', sex: 'm', height: 1.05, outfit: { coat: [0.25, 0.55, 0.30], trousers: [0.30, 0.25, 0.20] },
+      dash: { home: [-52, 30], target: [-46.5, 19.5], period: 20, runIn: 3.2, stay: 2.0, walkBack: 6.0, offset: 4 } },
+    // 遊客：停下來仰望、拍照
+    { id: 'touristPhoto', kind: 'tourist', sex: 'f', height: 1.65, outfit: { coat: [0.85, 0.82, 0.74], trousers: [0.20, 0.22, 0.30] }, backpack: [0.20, 0.35, 0.45], camera: true,
+      path: { points: [[-72, -9], [-42, -12], [-24, -17], [-56, -16]], mode: 'loop', speed: 1.0, start: 0,
+        dwell: [{ at: 0, sec: 8, look: [0, 40, 0], pose: 'lookUp' }, { at: 1, sec: 10, look: [0, 20, 0], pose: 'photo' }, { at: 2, sec: 6, look: [0, 30, -10], pose: 'lookUp' }] } },
+    { id: 'touristPairA', kind: 'tourist', sex: 'm', height: 1.80, outfit: { coat: [0.30, 0.40, 0.25], trousers: [0.45, 0.40, 0.32], hat: 'cap', capColor: [0.80, 0.80, 0.78] }, backpack: [0.12, 0.12, 0.12],
+      path: { points: [[-122, -9], [-80, -9], [-80, -15], [-122, -15]], mode: 'loop', speed: 0.95, start: 30, side: -0.45 } },
+    { id: 'touristPairB', kind: 'tourist', sex: 'f', height: 1.64, outfit: { coat: [0.55, 0.15, 0.30], trousers: [0.10, 0.10, 0.12] }, camera: true,
+      path: { points: [[-122, -9], [-80, -9], [-80, -15], [-122, -15]], mode: 'loop', speed: 0.95, start: 30, side: 0.45 } },
+    // 低頭看零起點銅星、再抬頭看教堂的遊客（站在鏡頭路線旁 6 m）
+    { id: 'touristZero', kind: 'tourist', sex: 'm', height: 1.75, outfit: { coat: [0.18, 0.25, 0.45], trousers: [0.55, 0.50, 0.40] }, backpack: [0.60, 0.30, 0.10],
+      idle: { at: [-22.5, 7.5], face: [-21, 3], lookCycle: [[-21, 0, 3], [0, 35, 0]], period: 9 } },
+    // 當地人：長椅上看書、遛狗、拿長棍麵包走過
+    { id: 'localReader', kind: 'local', sex: 'f', height: 1.66, outfit: { coat: [0.10, 0.10, 0.12], trousers: [0.30, 0.28, 0.26], scarf: [0.70, 0.12, 0.12] }, book: true,
+      sit: { bench: 2, offset: -0.4 } },
+    { id: 'localDogWalker', kind: 'local', sex: 'm', height: 1.78, outfit: { coat: [0.40, 0.33, 0.24], trousers: [0.12, 0.13, 0.16], scarf: [0.15, 0.20, 0.35] },
+      path: { points: [[-106, -36], [-30, -36], [-30, -39.5], [-106, -39.5]], mode: 'loop', speed: 1.1, start: 20 } },
+    { id: 'localBaguette', kind: 'local', sex: 'm', height: 1.74, outfit: { coat: [0.55, 0.55, 0.58], trousers: [0.12, 0.12, 0.14], hat: 'cap', capColor: [0.12, 0.12, 0.14] }, baguette: true,
+      path: { points: [[-122, -44], [-8, -44]], mode: 'pingpong', speed: 1.25, start: 15 } },
+  ],
+  pigeons: [
+    // A 群：孩子 childC 衝過來時起飛，繞一圈再落回
+    ...range(10).map((i) => ({ id: `pigeonA${i}`, flock: 'A', center: [-46, 19], radius: 4.5, scareBy: 'childC' })),
+    // B 群：廣場北側，偶爾小跳飛
+    ...range(4).map((i) => ({ id: `pigeonB${i}`, flock: 'B', center: [-88, -12], radius: 3.0, scareBy: null })),
+  ],
+  cats: [
+    { id: 'catSitting', pose: 'sit', at: [-10.6, 31.4], faceDeg: 200, coat: [0.12, 0.11, 0.10] },          // 查理曼像台座旁
+    { id: 'catWalking', pose: 'walk', coat: [0.70, 0.45, 0.22],
+      path: { points: [[-118, -49.2], [-24, -49.2]], mode: 'pingpong', speed: 0.55, start: 40 } },     // 沿主宮醫院側慢走
+  ],
+  dogs: [
+    { id: 'dogLeashed', size: 'medium', coat: [0.85, 0.80, 0.70], follows: 'localDogWalker', behind: 1.5, sideOffset: 0.6 },
+    { id: 'dogPlaying', size: 'small', coat: [0.30, 0.20, 0.12], circle: { center: [-60, 24], radius: 5.5, speed: 3.2, phase: 1.6 } },
+  ],
+};
+
+// -----------------------------------------------------------------------------
 // 周邊環境（只是量體，不做細節）
 // -----------------------------------------------------------------------------
 const surroundings = {
@@ -767,6 +822,7 @@ export const LAYOUT = deepFreeze({
   camera,
   cathedral,
   parvis,
+  actors,
   surroundings,
 });
 

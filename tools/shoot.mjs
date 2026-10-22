@@ -11,7 +11,7 @@ const args = Object.fromEntries(process.argv.slice(2).reduce((a, v, i, arr) => (
 const out = args.out || `out/${(args.m || 'none').replace(/,/g, '+')}-${args.view || 'view'}.png`;
 const w = +(args.w || 1280), h = +(args.h || 720);
 const qs = new URLSearchParams();
-for (const k of ['m', 'view', 't', 'pos', 'target', 'fov']) if (args[k] !== undefined) qs.set(k, args[k]);
+for (const k of ['m', 'view', 't', 'pos', 'target', 'fov', 'at']) if (args[k] !== undefined) qs.set(k, args[k]);
 qs.set('w', w); qs.set('h', h);
 
 const { server, port } = await startServer();

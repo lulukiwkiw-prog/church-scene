@@ -448,6 +448,21 @@ const DEFS = {
   }), { name: 'zincRoof', metalness: 0.45 }),
 
   windowDark: () => new THREE.MeshStandardMaterial({ name: 'windowDark', color: new THREE.Color(0.012, 0.014, 0.018), roughness: 0.12, metalness: 0.2 }),
+
+  // ---------- 人物與動物（底色近白，實際顏色由頂點色決定：variant(name, { vertexColors: true })）----------
+  fabric: () => std(bake('fabric', {
+    size: 256, worldW: 0.5, worldH: 0.5, normalStrength: 0.6,
+    paint: noisePainter('mat/fabric', { colA: [0.62, 0.62, 0.62], colB: [0.80, 0.80, 0.80], freq: 40, worldW: 0.5, worldH: 0.5, rough: 0.92, bump: 0.0006, octaves: 3 }),
+  }), { name: 'fabric' }),
+  skin: () => new THREE.MeshStandardMaterial({ name: 'skin', color: new THREE.Color(1, 1, 1), roughness: 0.55, metalness: 0 }),
+  feather: () => std(bake('feather', {
+    size: 256, worldW: 0.2, worldH: 0.2, normalStrength: 0.4,
+    paint: noisePainter('mat/feather', { colA: [0.66, 0.66, 0.66], colB: [0.82, 0.82, 0.82], freq: 30, worldW: 0.2, worldH: 0.2, rough: 0.75, bump: 0.0003, octaves: 3 }),
+  }), { name: 'feather' }),
+  fur: () => std(bake('fur', {
+    size: 256, worldW: 0.3, worldH: 0.3, normalStrength: 0.8,
+    paint: noisePainter('mat/fur', { colA: [0.60, 0.60, 0.60], colB: [0.85, 0.85, 0.85], freq: 60, worldW: 0.3, worldH: 0.3, rough: 0.9, bump: 0.0005, octaves: 3, contrast: 1.4 }),
+  }), { name: 'fur' }),
 };
 
 export const MATERIAL_NAMES = Object.freeze(Object.keys(DEFS));

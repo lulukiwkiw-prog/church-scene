@@ -87,6 +87,7 @@ async function main() {
     try {
       const mod = await import(`/src/${name}.js`);
       const group = mod.build({ layout: LAYOUT, materials, variant, rng });
+      if (group.userData.update) group.userData.update(+(q.get('at') || 0)); // 會動的模組：指定時間的姿勢
       group.traverse((o) => { if (o.isMesh) { o.castShadow = o.castShadow !== false; o.receiveShadow = true; } });
       scene.add(group);
       stats.modules[name] = { buildMs: Math.round(performance.now() - t0) };
