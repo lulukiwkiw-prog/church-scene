@@ -16,6 +16,7 @@
 //   --no-video             只算影格不合成
 //   --debug                加入測試量體（index.html?debug=1）
 //   --m a,b                只載入部分模組
+//   --look golden|overcast 光線風格範本
 //   其他參數（--tone --exposure --bloom --msaa --shadow）原樣傳給 index.html
 // 已存在的影格會跳過（斷點續算）。每格印出耗時與預估剩餘時間。
 import { mkdirSync, existsSync, statSync, renameSync, writeFileSync } from 'node:fs';
@@ -51,7 +52,7 @@ const fmt = (s) => (s >= 3600 ? `${Math.floor(s / 3600)}h${String(Math.floor((s 
 
 const qs = new URLSearchParams({ render: '1', w: String(W), h: String(H), fps: String(FPS) });
 if (args.debug) qs.set('debug', '1');
-for (const k of ['m', 'tone', 'exposure', 'bloom', 'msaa', 'shadow', 'stress']) if (args[k] !== undefined && args[k] !== true) qs.set(k, args[k]);
+for (const k of ['m', 'tone', 'exposure', 'bloom', 'msaa', 'shadow', 'stress', 'look']) if (args[k] !== undefined && args[k] !== true) qs.set(k, args[k]);
 
 // 要算的影格
 let jobs = [];

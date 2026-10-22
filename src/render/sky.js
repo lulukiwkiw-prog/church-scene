@@ -66,6 +66,8 @@ uniform float time;          // 秒（影格號 / fps）
 uniform vec3 hazeColor;      // 地平線霧色（與 fog 的遠景色一致）
 uniform vec3 groundColor;    // 地平線以下（環境貼圖用）
 uniform float cloudCover;    // 0..1
+uniform float cloudLow;      // 0..1 低空層雲（半陰天）：0 = 無
+uniform float cloudDark;     // 低空雲的亮度（越小越灰）
 uniform vec2 cloudWind;      // 雲層飄移（雲平面單位 / 秒）
 uniform float skySaturation; // 天空飽和度（傍晚晴天的深藍）
 
@@ -153,13 +155,26 @@ void main() {
     col = mix( col, cloudCol, m * 0.85 );
   }
 
+  // --- 低空層雲（半陰天）：較厚、較灰，會遮住一部分太陽圓盤 ---
+  float veil = 0.0;
+  if ( cloudLow > 0.0 && elev > 0.0 ) {
+    vec2 p2 = dSky.xz / ( dSky.y + 0.30 ) * 0.9 + cloudWind * time * 1.5;
+    float b = fbm( p2 * 0.9 + 7.0 ) * 0.62 + fbm( p2 * 2.6 + 2.0 ) * 0.38;
+    veil = smoothstep( 0.66 - 0.36 * cloudLow, 0.84 - 0.30 * cloudLow, b ) * smoothstep( 0.0, 0.10, elev );
+    float lit = pow( max( cosTheta, 0.0 ), 4.0 );
+    vec3 under = vec3( 0.50, 0.53, 0.60 ) * skyScale * cloudDark;
+    vec3 body  = vec3( 0.86, 0.85, 0.84 ) * skyScale * cloudDark;
+    vec3 cc = mix( under, body, smoothstep( 0.2, 0.9, b ) ) + vec3( 1.0, 0.78, 0.55 ) * skyScale * 0.9 * lit * ( 1.0 - 0.5 * veil );
+    col = mix( col, cc, veil * 0.96 );
+  }
+
   // --- 地平線薄霧 ---
   float hz = 1.0 - smoothstep( -0.02, 0.10, elev );
   col = mix( col, hazeColor, hz * hz * 0.8 );
 
   if ( mode < 0.5 ) {
     float sundisk = smoothstep( sunAngularDiameterCos, sunAngularDiameterCos + 0.00002, cosTheta );
-    col += sunDiskScale * vec3( 1.0, 0.82, 0.62 ) * sundisk;
+    col += sunDiskScale * vec3( 1.0, 0.82, 0.62 ) * sundisk * ( 1.0 - 0.9 * veil );
     if ( elev < 0.0 ) col = mix( col, hazeColor, smoothstep( 0.0, -0.05, elev ) );
   } else if ( elev < 0.0 ) {
     // 環境貼圖的下半球：地面（廣場石板、受光）漸層到地平線霧色
@@ -186,6 +201,8 @@ export function createSky(o) {
     hazeColor: { value: o.hazeColor.clone() },
     groundColor: { value: o.groundColor.clone() },
     cloudCover: { value: o.cloudCover ?? 0.7 },
+    cloudLow: { value: o.cloudLow ?? 0.0 },
+    cloudDark: { value: o.cloudDark ?? 1.0 },
     cloudWind: { value: new THREE.Vector2(0.004, 0.0015) },
     skySaturation: { value: o.skySaturation ?? 1.7 },
   };
