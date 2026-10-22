@@ -59,7 +59,6 @@
   #spots-wrap { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); display: flex; justify-content: center; pointer-events: none; }
   #spots { pointer-events: auto; display: flex; gap: 6px; overflow-x: auto; max-width: 100%; scrollbar-width: thin; }
   #spots::before { content: "前往"; align-self: center; font: 600 13px var(--display); letter-spacing: 0.1em; color: var(--gold); padding-right: 4px; }
-  #coords { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); font: 12px/1 ui-monospace, monospace; color: var(--ink-dim); font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000; }
   #hint { top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; font-size: 13px; text-align: center; max-width: calc(100vw - 32px); }
   #toast { top: 22%; left: 50%; transform: translateX(-50%); font: 600 26px/1 var(--display); letter-spacing: 0.1em; text-shadow: 0 2px 8px rgba(0,0,0,0.7); pointer-events: none; }
   #help { top: calc(70px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); width: min(300px, calc(100vw - 24px)); max-height: calc(100vh - 160px); overflow-y: auto; z-index: 5; }
@@ -85,7 +84,7 @@
   #knob { width: 40px; height: 40px; border-radius: 50%; background: rgba(217,163,91,0.65); }
   #updown { right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(80px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; }
   #updown button { width: 52px; height: 52px; font-size: 18px; background: var(--plate); touch-action: none; }
-  @media (max-width: 560px) { #title small { display: none; } #coords { display: none; } #about, #help { top: calc(128px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 210px); } #spots::before { white-space: nowrap; } }
+  @media (max-width: 560px) { #title small { display: none; } #about, #help { top: calc(128px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 210px); } #spots::before { white-space: nowrap; } }
   @media (prefers-reduced-motion: reduce) { #load-bar::after { transition: none; } }
 </style>
 <script type="importmap">
@@ -150,7 +149,6 @@
     <p class="note" id="about-note"></p>
   </section>
   <div id="spots-wrap"><div id="spots" class="plate"></div></div>
-  <div id="coords"></div>
   <div id="hint" class="plate"></div>
   <div id="toast" hidden></div>
   <div id="stick" hidden><div id="knob"></div></div>
