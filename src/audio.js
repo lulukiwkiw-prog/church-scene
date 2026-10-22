@@ -1,51 +1,58 @@
 // src/audio.js — 互動版的聲音（全部即時合成，沒有任何錄音檔）
 // -----------------------------------------------------------------------------
-// - 鐘聲：加法合成的教堂鐘（hum / prime / tierce / quint / nominal… 分音），
-//   音高取自聖母院的鐘：南塔大鐘 Emmanuel（F#2），北塔四口鐘。
-//   聲源放在鐘樓位置（PannerNode），走遠會變小、轉頭會換邊。
-// - 配樂：原創的法式手風琴圓舞曲（G 大調，3/4 拍），手風琴雙簧片微失諧＋顫音，
-//   低音與和弦「蹦恰恰」，第二遍換成撥弦伴奏與八度旋律。鐘響時配樂自動壓低。
-// - 環境音：低沉的城市背景聲、鴿群的咕咕聲（放在鴿群位置）。
-// 瀏覽器規定聲音只能在使用者點擊後開始：startAudio() 必須在 click 事件裡呼叫。
+// - 鐘聲：明亮清脆的小鐘（加法合成，強調高分音與敲擊聲），D 大調八口鐘由高到低
+//   輪敲（rounds），最後一口較低的鐘敲三下。聲源放在兩座鐘樓（PannerNode），
+//   走遠會變小、轉頭會換邊。
+// - 配樂：原創的慢板巴薩諾瓦（D 大調，每分鐘 92 拍）：尼龍弦吉他
+//   （Karplus-Strong 撥弦合成）彈切分和弦、低音提琴、輕刷鼓與邊擊，旋律是無歌詞的
+//   輕柔哼唱聲（共振峰合成的「嗚」母音）。鐘響時配樂自動壓低。
+// - 環境音：遠處城市的輕微底噪、鴿群的咕咕聲（放在鴿群位置）。
+// 瀏覽器規定聲音只能在使用者點擊後開始：start() 必須在 click 事件裡呼叫。
 // -----------------------------------------------------------------------------
 
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+const n = (name) => {
+  const m = /^([A-G])(#|b?)(\d)$/.exec(name);
+  return 12 * (+m[3] + 1) + { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0);
+};
 
 // ---------------- 樂譜（原創）----------------
-// 每小節：[和弦, 低音（MIDI）, 旋律 [[拍, 長度（拍）, MIDI], …]]
-const G = 'G', Em = 'Em', Am = 'Am', D7 = 'D7', B7 = 'B7', E7 = 'E7';
-const CHORDS = {
-  G: [55, 59, 62], Em: [52, 55, 59], Am: [57, 60, 64], D7: [54, 57, 60], B7: [51, 54, 57], E7: [56, 59, 62],
+// 吉他和弦（含根音，由低到高）；低音提琴另外彈根音與五度
+const CH = {
+  Dmaj7: ['D3', 'A3', 'C#4', 'F#4'], Em7: ['E3', 'B3', 'D4', 'G4'], A7: ['A2', 'G3', 'C#4', 'E4'],
+  'F#m7': ['F#2', 'E3', 'A3', 'C#4'], B7: ['B2', 'A3', 'D#4', 'F#4'], Gmaj7: ['G2', 'F#3', 'B3', 'D4'],
+  Fdim7: ['F2', 'D3', 'G#3', 'B3'], A7sus: ['A2', 'G3', 'D4', 'E4'],
 };
-const n = (name) => {
-  const m = /^([A-G])(#?)(\d)$/.exec(name);
-  return 12 * (+m[3] + 1) + { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]] + (m[2] ? 1 : 0);
-};
-const BARS = [
-  [G, 'G2', [[0, 1, 'B4'], [1, 0.5, 'D5'], [1.5, 0.5, 'C5'], [2, 1, 'B4']]],
-  [G, 'D3', [[0, 1.5, 'G4'], [1.5, 0.5, 'A4'], [2, 1, 'B4']]],
-  [Em, 'E2', [[0, 1, 'E5'], [1, 0.5, 'G5'], [1.5, 0.5, 'F#5'], [2, 1, 'E5']]],
-  [Em, 'B2', [[0, 2, 'B4'], [2, 1, 'G4']]],
-  [Am, 'A2', [[0, 1, 'C5'], [1, 0.5, 'E5'], [1.5, 0.5, 'D5'], [2, 1, 'C5']]],
-  [D7, 'D3', [[0, 1, 'A4'], [1, 1, 'F#4'], [2, 0.5, 'A4'], [2.5, 0.5, 'C5']]],
-  [G, 'G2', [[0, 1, 'B4'], [1, 0.5, 'A4'], [1.5, 0.5, 'G4'], [2, 1, 'D5']]],
-  [D7, 'A2', [[0, 1.5, 'C5'], [1.5, 0.5, 'B4'], [2, 1, 'A4']]],
-  [G, 'G2', [[0, 1, 'B4'], [1, 0.5, 'D5'], [1.5, 0.5, 'G5'], [2, 1, 'B5']]],
-  [B7, 'B2', [[0, 1, 'A5'], [1, 0.5, 'F#5'], [1.5, 0.5, 'D#5'], [2, 1, 'B4']]],
-  [Em, 'E2', [[0, 1, 'E5'], [1, 0.5, 'G5'], [1.5, 0.5, 'B5'], [2, 1, 'G5']]],
-  [E7, 'E2', [[0, 1.5, 'G#5'], [1.5, 0.5, 'F#5'], [2, 1, 'E5']]],
-  [Am, 'A2', [[0, 1, 'A5'], [1, 0.5, 'C6'], [1.5, 0.5, 'B5'], [2, 1, 'A5']]],
-  [D7, 'D3', [[0, 1, 'F#5'], [1, 0.5, 'A5'], [1.5, 0.5, 'F#5'], [2, 0.5, 'D5'], [2.5, 0.5, 'C5']]],
-  [G, 'G2', [[0, 1, 'B4'], [1, 0.5, 'G4'], [1.5, 0.5, 'A4'], [2, 1, 'B4']]],
-  [G, 'D3', [[0, 2, 'G4']]],
-].map(([c, b, mel]) => ({ chord: CHORDS[c], bass: n(b), mel: mel.map(([at, d, p]) => [at, d, n(p)]) }));
-const BPM = 160, BEAT = 60 / BPM, BAR = 3 * BEAT;
+const BASS = { Dmaj7: ['D2', 'A2'], Em7: ['E2', 'B2'], A7: ['A2', 'E2'], 'F#m7': ['F#2', 'C#3'], B7: ['B2', 'F#2'], Gmaj7: ['G2', 'D3'], Fdim7: ['F2', 'B2'], A7sus: ['A2', 'E2'] };
+// 每小節：[和弦, 旋律 [[拍, 長度（拍）, 音]]]（4/4 拍）
+const SCORE = [
+  ['Dmaj7', [[0, 1.5, 'A4'], [1.5, 0.5, 'C#5'], [2, 2, 'F#5']]],
+  ['Dmaj7', [[0.5, 1, 'E5'], [1.5, 0.5, 'D5'], [2, 2, 'C#5']]],
+  ['Em7', [[0, 1.5, 'B4'], [1.5, 0.5, 'D5'], [2, 1.5, 'G5'], [3.5, 0.5, 'F#5']]],
+  ['A7', [[0, 3, 'E5'], [3, 0.5, 'G5'], [3.5, 0.5, 'E5']]],
+  ['F#m7', [[0, 1.5, 'C#5'], [1.5, 0.5, 'E5'], [2, 2, 'A5']]],
+  ['B7', [[0.5, 1, 'G5'], [1.5, 0.5, 'F#5'], [2, 2, 'D#5']]],
+  ['Em7', [[0, 1.5, 'G5'], [1.5, 0.5, 'F#5'], [2, 1, 'E5'], [3, 1, 'D5']]],
+  ['A7', [[0, 3.5, 'C#5']]],
+  ['Dmaj7', [[0, 1.5, 'A4'], [1.5, 0.5, 'C#5'], [2, 2, 'F#5']]],
+  ['Gmaj7', [[0.5, 1, 'B5'], [1.5, 0.5, 'A5'], [2, 2, 'F#5']]],
+  ['F#m7', [[0, 1.5, 'E5'], [1.5, 0.5, 'F#5'], [2, 1.5, 'A5'], [3.5, 0.5, 'E5']]],
+  ['Fdim7', [[0, 2, 'D5'], [2, 1, 'B4'], [3, 1, 'G#4']]],
+  ['Em7', [[0, 1.5, 'G4'], [1.5, 0.5, 'B4'], [2, 2, 'D5']]],
+  ['A7sus', [[0, 1.5, 'E5'], [1.5, 0.5, 'D5'], [2, 1, 'C#5'], [3, 1, 'B4']]],
+  ['Dmaj7', [[0, 3, 'D5']]],
+  ['A7', [[3, 0.5, 'A4'], [3.5, 0.5, 'B4']]],
+].map(([c, mel]) => ({ chord: CH[c].map(n), bass: BASS[c].map(n), mel: mel.map(([at, d, p]) => [at, d, n(p)]) }));
+const BPM = 92, BEAT = 60 / BPM, BAR = 4 * BEAT, SIX = BEAT / 4;
+// 巴薩諾瓦吉他節奏（以十六分音符為格，兩小節一組）：和弦撥奏與拇指低音
+const GUITAR_HITS = [[0, 3, 6, 10, 13], [2, 6, 10, 12]];
+const THUMB = [0, 6, 8, 14];
 
-// 聖母院的鐘（Hz）：北塔 Gabriel、Anne-Geneviève、Denis、Marcel；南塔 Emmanuel
-const NORTH_BELLS = [116.5, 123.5, 138.6, 155.6];
-const BOURDON = 92.5;
-// 鐘的分音：[頻率倍數, 相對音量, 衰減秒數]
-const PARTIALS = [[0.5, 0.55, 9], [1, 0.45, 6.5], [1.183, 0.35, 5], [1.506, 0.2, 4], [2, 0.38, 3.6], [2.514, 0.12, 2.6], [2.662, 0.1, 2.4], [3.011, 0.12, 2], [4.166, 0.07, 1.4], [5.433, 0.05, 1]];
+// 清脆的鐘：D 大調八口鐘（由高到低輪敲），最後一口低鐘敲三下
+const PEAL = ['D6', 'C#6', 'B5', 'A5', 'G5', 'F#5', 'E5', 'D5'].map((x) => mtof(n(x)));
+const TOLL = mtof(n('A4'));
+// 分音：[頻率倍數（相對 strike 音）, 相對音量, 衰減秒數]；高分音較強 → 清亮
+const PARTIALS = [[0.5, 0.18, 3.2], [1, 0.55, 2.6], [1.2, 0.22, 2.0], [1.5, 0.16, 1.7], [2, 0.42, 1.5], [2.51, 0.22, 1.1], [2.66, 0.18, 1.0], [3.01, 0.2, 0.8], [4.16, 0.12, 0.55], [5.43, 0.08, 0.4], [6.8, 0.05, 0.3]];
 
 export function createAudio({ layout }) {
   const W = layout.cathedral.westFront;
@@ -70,98 +77,157 @@ export function createAudio({ layout }) {
   }
 
   // ---------------- 鐘 ----------------
-  function bell(f0, when, gain, dest) {
+  function bell(f, when, gain, dest) {
     const out = ctx.createGain();
     out.gain.value = gain;
     out.connect(dest);
     for (const [ratio, amp, decay] of PARTIALS) {
-      for (const det of ratio === 0.5 ? [1, 1.0017] : [1]) { // hum 兩個略分離的頻率 → 鐘聲特有的「哇哇」拍頻
+      for (const det of ratio === 1 ? [1, 1.0012] : [1]) { // 主音兩個略分離的頻率 → 輕微的閃爍感
         const o = ctx.createOscillator();
-        o.frequency.value = f0 * 2 * ratio * det; // f0 是 prime 的一半（鐘的命名以 hum 為準）
+        o.frequency.value = f * ratio * det;
         const g = ctx.createGain();
         g.gain.setValueAtTime(0, when);
-        g.gain.linearRampToValueAtTime(amp, when + 0.004);
-        g.gain.exponentialRampToValueAtTime(0.0001, when + decay * (f0 < 100 ? 1.6 : 1));
+        g.gain.linearRampToValueAtTime(amp, when + 0.002);
+        g.gain.exponentialRampToValueAtTime(0.0001, when + decay);
         o.connect(g).connect(out);
         o.start(when);
-        o.stop(when + decay * 1.7 + 0.1);
+        o.stop(when + decay + 0.05);
       }
     }
-    // 敲擊的金屬噪音
-    const len = Math.floor(ctx.sampleRate * 0.08), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < len; i++) d[i] = (rand() * 2 - 1) * Math.pow(1 - i / len, 3);
+    // 金屬敲擊聲（短而亮）
+    const len = Math.floor(ctx.sampleRate * 0.03), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (rand() * 2 - 1) * Math.pow(1 - i / len, 4);
     const src = ctx.createBufferSource(); src.buffer = buf;
-    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f0 * 14; bp.Q.value = 2;
-    const g = ctx.createGain(); g.gain.value = 0.25;
-    src.connect(bp).connect(g).connect(out);
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = Math.min(9000, f * 4);
+    const g = ctx.createGain(); g.gain.value = 0.35;
+    src.connect(hp).connect(g).connect(out);
     src.start(when);
   }
   function peal(start) {
-    // 北塔四口鐘依序輪敲（rounds）六輪，接著南塔大鐘 Emmanuel 敲三下
     const np = panner(towerPos(north)); np.connect(bellBus);
-    const nb = ctx.createGain(); nb.connect(np);
     const sp = panner(towerPos(south)); sp.connect(bellBus);
     let t = start;
-    for (let round = 0; round < 6; round++) {
-      for (let i = NORTH_BELLS.length - 1; i >= 0; i--) {
-        bell(NORTH_BELLS[i], t + (rand() - 0.5) * 0.04, 0.22, nb);
-        t += 0.62;
-      }
-      t += round === 5 ? 1.2 : 0.62; // 每輪之間的「手拍」空檔
+    for (let round = 0; round < 4; round++) {
+      PEAL.forEach((f, i) => {
+        bell(f, t + (rand() - 0.5) * 0.03, 0.16, i % 2 ? sp : np); // 兩座塔交替，聽起來左右呼應
+        t += 0.34;
+      });
+      t += 0.34; // 每輪之間的空拍
     }
-    for (let k = 0; k < 3; k++) { bell(BOURDON, t, 0.5, sp); t += 3.4; }
-    // 鐘響期間配樂壓低
+    t += 0.6;
+    for (let k = 0; k < 3; k++) { bell(TOLL, t, 0.28, sp); t += 1.9; }
     const g = musicBus.gain;
     g.cancelScheduledValues(start);
-    g.setTargetAtTime(musicOn ? 0.3 : 0, start, 0.6);
-    g.setTargetAtTime(musicOn ? 1 : 0, t + 2, 1.5);
+    g.setTargetAtTime(musicOn ? 0.35 : 0, start, 0.6);
+    g.setTargetAtTime(musicOn ? 1 : 0, t + 1, 1.5);
     return t;
   }
 
-  // ---------------- 手風琴與伴奏 ----------------
-  function accordion(midi, when, dur, vel, dest, octaveUp = false) {
-    const f = mtof(midi) * (octaveUp ? 2 : 1);
-    const env = ctx.createGain();
-    env.gain.setValueAtTime(0, when);
-    env.gain.linearRampToValueAtTime(vel, when + 0.025);
-    env.gain.setValueAtTime(vel * 0.85, when + Math.max(0.03, dur - 0.06));
-    env.gain.linearRampToValueAtTime(0, when + dur + 0.06);
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2600; lp.Q.value = 0.8;
-    lp.connect(env).connect(dest);
-    // musette：兩片簧片相差約 ±7 cent，產生手風琴特有的顫動
-    for (const [type, mul, det, amp] of [['sawtooth', 1, 7, 0.32], ['sawtooth', 1, -7, 0.32], ['square', 0.5, 0, 0.12]]) {
-      const o = ctx.createOscillator();
-      o.type = type; o.frequency.value = f * mul; o.detune.value = det;
-      const g = ctx.createGain(); g.gain.value = amp;
-      o.connect(g).connect(lp);
-      o.start(when); o.stop(when + dur + 0.1);
-    }
+  // ---------------- 尼龍弦吉他（Karplus-Strong，預先算好每個音）----------------
+  const plucks = new Map();
+  function pluckBuffer(midi, bright) {
+    const key = `${midi}|${bright}`;
+    if (plucks.has(key)) return plucks.get(key);
+    const sr = ctx.sampleRate, f = mtof(midi), N = Math.max(2, Math.round(sr / f));
+    const len = Math.floor(sr * 2.6), buf = ctx.createBuffer(1, len, sr), d = buf.getChannelData(0);
+    // 初始：雜訊經過平滑（尼龍弦比鋼弦柔）
+    let prev = 0;
+    for (let i = 0; i < N; i++) { const w = rand() * 2 - 1; prev = prev + (w - prev) * bright; d[i] = prev; }
+    const loss = 0.4985 - 0.0006 * Math.max(0, (midi - 60) / 12);
+    for (let i = N; i < len; i++) d[i] = loss * (d[i - N] + d[i - N + 1]);
+    let peak = 0; for (let i = 0; i < len; i++) peak = Math.max(peak, Math.abs(d[i]));
+    for (let i = 0; i < len; i++) d[i] /= peak || 1;
+    plucks.set(key, buf);
+    return buf;
   }
-  function pluck(midi, when, vel, dest, decay = 0.35) {
-    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = mtof(midi);
-    const o2 = ctx.createOscillator(); o2.type = 'sine'; o2.frequency.value = mtof(midi) * 2;
+  function guitar(midi, when, vel, dest, bright = 0.45, dur = 2.4) {
+    const src = ctx.createBufferSource(); src.buffer = pluckBuffer(midi, bright);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3200;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vel, when);
+    g.gain.setTargetAtTime(0, when + dur, 0.08);
+    src.connect(lp).connect(g).connect(dest);
+    src.start(when); src.stop(when + dur + 0.5);
+  }
+  // 低音提琴：柔和的正弦＋三角波撥奏
+  function upright(midi, when, vel, dest) {
+    const f = mtof(midi);
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+    const o2 = ctx.createOscillator(); o2.type = 'triangle'; o2.frequency.value = f;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0, when);
-    g.gain.linearRampToValueAtTime(vel, when + 0.005);
-    g.gain.exponentialRampToValueAtTime(0.0005, when + decay);
-    const g2 = ctx.createGain(); g2.gain.value = 0.25;
+    g.gain.linearRampToValueAtTime(vel, when + 0.012);
+    g.gain.exponentialRampToValueAtTime(vel * 0.3, when + 0.5);
+    g.gain.exponentialRampToValueAtTime(0.0005, when + 1.4);
+    const g2 = ctx.createGain(); g2.gain.value = 0.35;
     o.connect(g); o2.connect(g2).connect(g); g.connect(dest);
-    o.start(when); o2.start(when); o.stop(when + decay + 0.05); o2.stop(when + decay + 0.05);
+    o.start(when); o2.start(when); o.stop(when + 1.5); o2.stop(when + 1.5);
+  }
+  // 輕刷鼓：濾過的雜訊；邊擊：短促的木頭聲
+  let noiseBuf = null;
+  function brush(when, vel, dest, len = 0.12) {
+    if (!noiseBuf) {
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = rand() * 2 - 1;
+    }
+    const src = ctx.createBufferSource(); src.buffer = noiseBuf;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 5200; bp.Q.value = 0.6;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(vel, when + len * 0.4);
+    g.gain.exponentialRampToValueAtTime(0.0005, when + len);
+    src.connect(bp).connect(g).connect(dest);
+    src.start(when, rand() * 0.8); src.stop(when + len + 0.02);
+  }
+  function rim(when, vel, dest) {
+    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = 1750;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vel, when);
+    g.gain.exponentialRampToValueAtTime(0.0005, when + 0.05);
+    o.connect(g).connect(dest); o.start(when); o.stop(when + 0.06);
+  }
+  // 輕柔哼唱：鋸齒波 → 兩個共振峰（「嗚」母音）→ 慢起音、延遲顫音
+  function hum(midi, when, dur, vel, dest) {
+    const f = mtof(midi);
+    const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
+    const vib = ctx.createOscillator(); vib.frequency.value = 5.2;
+    const vg = ctx.createGain();
+    vg.gain.setValueAtTime(0, when);
+    vg.gain.linearRampToValueAtTime(f * 0.009, when + Math.min(0.6, dur * 0.6));
+    vib.connect(vg).connect(o.frequency);
+    // 輕微滑音進入（歌手的習慣）
+    o.frequency.setValueAtTime(f * 0.985, when);
+    o.frequency.exponentialRampToValueAtTime(f, when + 0.09);
+    const f1 = ctx.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 340; f1.Q.value = 4;
+    const f2 = ctx.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 820; f2.Q.value = 6;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200;
+    const mix = ctx.createGain(); mix.gain.value = 1;
+    const a = ctx.createGain(); a.gain.value = 1.0;
+    const b = ctx.createGain(); b.gain.value = 0.45;
+    o.connect(lp); lp.connect(f1).connect(a).connect(mix); lp.connect(f2).connect(b).connect(mix);
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, when);
+    env.gain.linearRampToValueAtTime(vel, when + 0.09);
+    env.gain.setValueAtTime(vel * 0.9, when + Math.max(0.1, dur - 0.12));
+    env.gain.linearRampToValueAtTime(0, when + dur + 0.18);
+    mix.connect(env).connect(dest);
+    o.start(when); vib.start(when); o.stop(when + dur + 0.3); vib.stop(when + dur + 0.3);
   }
   function scheduleBar(b, t0) {
-    const B = BARS[b], light = pass % 2 === 1;
-    // 蹦：低音
-    pluck(B.bass, t0, 0.5, musicBus, 0.5);
-    // 恰恰：和弦（第一遍手風琴短音、第二遍撥弦）
-    for (const beat of [1, 2]) {
-      const w = t0 + beat * BEAT + (rand() - 0.5) * 0.01;
-      for (const m of B.chord) light ? pluck(m, w, 0.12, musicBus, 0.25) : accordion(m, w, BEAT * 0.45, 0.05, musicBus);
+    const B = SCORE[b], second = pass % 2 === 1;
+    const sw = (i) => t0 + i * SIX + (rand() - 0.5) * 0.012; // 十六分音符格＋一點人性化
+    // 吉他：切分和弦（高三個音）＋拇指低音
+    for (const i of GUITAR_HITS[b % 2]) {
+      B.chord.slice(1).forEach((m, k) => guitar(m, sw(i) + k * 0.012, 0.11, musicBus, 0.4, SIX * 2.6));
     }
-    // 旋律
-    for (const [at, d, p] of B.mel) {
-      const w = t0 + at * BEAT + (rand() - 0.3) * 0.012; // 一點點搖擺
-      accordion(p, w, d * BEAT * 0.92, light ? 0.1 : 0.13, musicBus, light && b >= 8);
-    }
+    for (const i of THUMB) guitar(i < 8 ? B.chord[0] : B.bass[1] + 12, sw(i), 0.16, musicBus, 0.3, SIX * (i === 6 ? 1.6 : 2.8)); // 根音 → 五度
+    // 低音提琴：第 1、3 拍（第二遍才進來）
+    if (second || b >= 8) { upright(B.bass[0], sw(0), 0.17, musicBus); upright(B.bass[1], sw(8), 0.14, musicBus); }
+    // 刷鼓：每個十六分音符很輕地刷，二、四拍稍重；邊擊敲巴薩諾瓦的節奏
+    for (let i = 0; i < 16; i++) brush(sw(i), i % 4 === 0 ? 0.02 : i % 4 === 2 ? 0.035 : 0.012, musicBus, i % 8 === 4 ? 0.25 : 0.1);
+    for (const i of b % 2 ? [2, 6, 12] : [0, 6, 12]) rim(sw(i), 0.05, musicBus);
+    // 旋律：哼唱（第二遍稍輕）
+    for (const [at, d, p] of B.mel) hum(p, t0 + at * BEAT + (rand() - 0.2) * 0.02, d * BEAT * 0.95, second ? 0.11 : 0.13, musicBus);
   }
 
   // ---------------- 環境 ----------------
@@ -208,7 +274,7 @@ export function createAudio({ layout }) {
     while (nextBarTime < ahead) {
       if (musicOn) scheduleBar(bar, nextBarTime);
       nextBarTime += BAR;
-      bar = (bar + 1) % BARS.length;
+      bar = (bar + 1) % SCORE.length;
       if (bar === 0) pass++;
     }
     if (now + 0.5 > nextPeal) { const end = peal(Math.max(now + 0.3, nextPeal)); nextPeal = end + 75; }
