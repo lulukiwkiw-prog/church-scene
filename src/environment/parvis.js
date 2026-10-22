@@ -15,7 +15,7 @@ export function buildParvis(B, L) {
     const R = diameter / 2;
     const oct = (r, ph = Math.PI / 8) => Array.from({ length: 8 }, (_, i) => [x + r * Math.cos(ph + (i * Math.PI) / 4), z + r * Math.sin(ph + (i * Math.PI) / 4)]);
     const y0 = pv.y + LAYER.plate;
-    groundPoly(B.get('parvis', 'stoneTrace'), oct(R * 1.9), [], y0);
+    groundPoly(B.get('parvis', 'stoneTrace'), oct(R * 2.3), [], y0);
     const br = B.get('parvis', 'bronzePolished');
     // 銅環（八角）
     groundPoly(br, oct(R), [oct(R * 0.9).reverse()], y0 + 0.006);
@@ -25,6 +25,12 @@ export function buildParvis(B, L) {
       return [x + r * Math.cos(a), z + r * Math.sin(a)];
     });
     groundPoly(br, star, [], y0 + 0.008);
+    // 外圈刻字環（細銅環）＋ 8 個方位小銅釘
+    groundPoly(br, oct(R * 1.32), [oct(R * 1.26).reverse()], y0 + 0.006);
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4, cx = x + R * 1.58 * Math.cos(a), cz = z + R * 1.58 * Math.sin(a);
+      groundPoly(br, Array.from({ length: 8 }, (_, k) => [cx + 0.04 * Math.cos((k * Math.PI) / 4), cz + 0.04 * Math.sin((k * Math.PI) / 4)]), [], y0 + 0.006);
+    }
     // 中央圓章
     groundPoly(br, Array.from({ length: 12 }, (_, i) => [x + R * 0.18 * Math.cos((i * Math.PI) / 6), z + R * 0.18 * Math.sin((i * Math.PI) / 6)]), [], y0 + 0.01);
   }

@@ -6,6 +6,9 @@ import { compassToLocal, archivoltRing } from '../layout.js';
 import { Mesher, facing, transM, scaleM } from './sculpture/geo.js';
 import { figure, spec, SEAT_HEIGHT } from './sculpture/figure.js';
 import { gargoyle, chimera, stryge, evangelistBeast, horse, beastHead } from './sculpture/beasts.js';
+import { sdfCreature } from './sculpture/sdfbeast.js';
+import { sdfGargoyle, headMatrix } from './sculpture/sdfgargoyle.js';
+import { addMesh } from './sculpture/sdfhuman.js';
 import {
   westPortalFrame, transeptPortalFrame, placeFigure, tympanum,
   archivoltSlots, archivoltMatrix, ARCHIVOLT_THEMES, archivoltTemplate,
@@ -147,10 +150,11 @@ export function build({ layout, materials, variant, rng }) {
     const dx = c.x === 0 ? -1 : 1;
     const dz = Math.abs(Math.abs(c.z) - WF.z1) < 0.01 ? Math.sign(c.z) : 0;
     chimM.push(facing([c.x, c.y, c.z], dx, dz, c.height));
-    chimera(chimM, {
-      kind: r.pick(['dog', 'goat', 'eagle', 'lion', 'dog']), wings: r.pick([null, 'bat', 'feather']),
-      horns: r.pick([null, 'small', 'big']), jaw: r.range(0.1, 0.6), headTurn: r.range(-0.5, 0.5), headTilt: r.range(-0.1, 0.4),
-    });
+    // 四種造型（獅、羊、鷹、狼）各配固定的翅膀，共用快取；轉個角度讓每隻看起來不一樣
+    const kind = r.pick(['lion', 'goat', 'eagle', 'dog']);
+    chimM.pushTRS(0, 0, 0, 0, r.range(-0.22, 0.22), 0);
+    sdfCreature(chimM, kind, { lion: 'bat', goat: null, eagle: 'feather', dog: 'bat' }[kind]);
+    chimM.pop();
     chimM.pop();
   });
   out(chimM, stone, 'sculpture-chimeras');
@@ -209,7 +213,11 @@ export function build({ layout, materials, variant, rng }) {
   gKinds.forEach((o, v) => {
     if (!gInst[v].length) return;
     const T = new Mesher();
-    gargoyle(T, { ...o, nu: 10, headNu: 12 });
+    const G = sdfGargoyle(o.kind);
+    addMesh(T, G.body);
+    T.push(headMatrix());
+    addMesh(T, G.head);
+    T.pop();
     const im = new THREE.InstancedMesh(T.toGeometry(), stone, gInst[v].length);
     gInst[v].forEach((m, i) => im.setMatrixAt(i, m));
     im.instanceMatrix.needsUpdate = true;
@@ -231,17 +239,17 @@ export function build({ layout, materials, variant, rng }) {
       if (st.kind === 'apostle') {
         const kind = st.facingSpire ? 'thomas' : apostleKinds[ai % apostleKinds.length];
         ai++;
-        const Sp = S(kind, `apostles/${g.id}/${ai}`, { lod: 1, head: { halo: null } });
+        const Sp = S(kind, `apostles/${g.id}/${ai}`, { lod: 1, sdf: true, head: { halo: null } });
         if (kind === 'thomas') Sp.head.tilt = -0.35;
         const dir = st.facingSpire ? [-dx, -dz] : [dx, dz];
         fig(cuM, Sp, [st.x, st.y, st.z], dir, st.height);
       } else {
         const sym = symbol[g.id];
         if (sym === 'angel') {
-          fig(cuM, S('angel', `apostles/${g.id}/sym`, { lod: 1, arms: { R: 'hold', L: 'hold' }, hold: { L: 'book' } }), [st.x, st.y, st.z], [dx, dz], st.height);
+          fig(cuM, S('angel', `apostles/${g.id}/sym`, { lod: 1, sdf: true, arms: { R: 'hold', L: 'hold' }, hold: { L: 'book' } }), [st.x, st.y, st.z], [dx, dz], st.height);
         } else {
           cuM.push(facing([st.x, st.y, st.z], dx, dz, st.height));
-          evangelistBeast(cuM, sym);
+          sdfCreature(cuM, sym, 'feather');
           cuM.pop();
         }
       }

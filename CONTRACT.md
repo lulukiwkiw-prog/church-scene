@@ -18,7 +18,7 @@
 | 1 | 結構 | `src/structure.js`（可另建 `src/structure/*.js`） | 400k |
 | 2 | 立面與窗 | `src/facades.js`（可另建 `src/facades/*.js`） | 1.5M |
 | 3 | 屋頂與尖頂 | `src/roofs.js`（可另建 `src/roofs/*.js`） | 600k |
-| 4 | 雕刻 | `src/sculpture.js`（可另建 `src/sculpture/*.js`） | 2.5M |
+| 4 | 雕刻 | `src/sculpture.js`（可另建 `src/sculpture/*.js`） | 4.3M |
 | 5 | 廣場與環境 | `src/environment.js`（可另建 `src/environment/*.js`） | 1.0M |
 | 7 | 活動物件（人物、鴿子、貓、狗） | `src/actors.js` | 200k |
 | 6 | 光影鏡頭輸出 | `render.html`、`src/main.js`、`src/render/*`、`tools/render-video.mjs` | — |
