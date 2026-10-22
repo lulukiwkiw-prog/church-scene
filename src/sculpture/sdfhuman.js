@@ -16,7 +16,7 @@ const hyp = (a, b, c = 0) => sqrt(a * a + b * b + c * c);
 // 單位：身高 = 1（約 1.7 m，所以 0.0018 ≈ 3 mm）。五眼：眼長 ≈ 兩眼間距 ≈ 0.0185，臉寬 ≈ 5 眼。
 export const FACE = {
   m: { hairline: 0.058, brow: 0.02, noseBase: -0.018, mouth: -0.031, chin: -0.058, chinR: 0.0145, chinW: 1.2, chinZ: 0.061, eyeR: 0.0092, tipUp: 0.002, noseK: 1.0, jaw: 1 },
-  f: { hairline: 0.056, brow: 0.02, noseBase: -0.016, mouth: -0.0255, chin: -0.0415, chinR: 0.0105, chinW: 0.95, chinZ: 0.0575, eyeR: 0.0101, tipUp: 0.0048, noseK: 0.86, jaw: 0 },
+  f: { hairline: 0.056, brow: 0.02, noseBase: -0.016, mouth: -0.025, chin: -0.0355, chinR: 0.0105, chinW: 0.95, chinZ: 0.0575, eyeR: 0.0101, tipUp: 0.0048, noseK: 0.86, jaw: 0 },
 };
 
 function headField(x, y, z, P) {
