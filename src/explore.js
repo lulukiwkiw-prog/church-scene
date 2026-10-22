@@ -450,9 +450,6 @@ function frame() {
   audio.update(camera);
   lighting.update(camera);
   post.composer.render(dt);
-
-  const p = camera.position;
-  $('coords').textContent = `x ${p.x.toFixed(1)}  y ${p.y.toFixed(1)}  z ${p.z.toFixed(1)} m`;
   requestAnimationFrame(frame);
 }
 
