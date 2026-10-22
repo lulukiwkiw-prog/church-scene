@@ -172,6 +172,15 @@ function buildPerson(def, M, rng) {
   const coatProfile = [[0.001, torsoL + 0.03 * h], [0.045 * h, torsoL + 0.026 * h], [0.075 * h, torsoL + 0.008 * h], [shR, torsoL - 0.02 * h], [chR, torsoL - 0.07 * h],
     [(chR + waR) / 2, torsoL * 0.68], [waR, torsoL * 0.45], [hipR, 0.0], [Math.max(hipR, coatFlare * 0.55) * 1.02, -0.03 * h], [Math.max(coatFlare, hipR), -coatLen]].map(([r, y]) => new THREE.Vector2(r, y));
   const coatG = new THREE.LatheGeometry(coatProfile, 36);
+  if (fem) { // 胸線：衣服表面自己隆起（不另加球體），布料包在外面
+    const pp = coatG.attributes.position;
+    for (let i = 0; i < pp.count; i++) {
+      const x = pp.getX(i), y = pp.getY(i), z = pp.getZ(i);
+      if (z <= 0) continue;
+      const dx = (Math.abs(x) - 0.03 * h) / (0.032 * h), dy = (y - (torsoL - 0.088 * h)) / (0.04 * h);
+      pp.setZ(i, z + 0.018 * h * Math.exp(-(dx * dx + dy * dy)));
+    }
+  }
   foldGeo(coatG, { n: 11, amp: coatLen > 0.1 * h ? 0.07 : 0.03, y0: torsoL * 0.3, y1: -coatLen, ph: foldPh, hem: coatLen > 0.1 * h ? 0.03 * h : 0 });
   part(torso, coatG, M.cloth, o.coat, [0, 0, 0], null, [1.18, 1, 0.78]);
   let skirt = null;
