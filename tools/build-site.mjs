@@ -58,6 +58,7 @@ ${rest.trim()}
 </html>
 `;
 writeFileSync(join(ROOT, 'index.html'), page);
+writeFileSync(join(ROOT, '.nojekyll'), ''); // GitHub Pages：不要用 Jekyll 處理，直接當靜態檔案送出
 
 // ---------- 2. 找出執行時用到的原始碼（從 src/explore.js 往下追 import）----------
 const specRe = /(?:import|export)\s[^'"]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)/g;
