@@ -146,7 +146,7 @@ function trackYaw(track, t, w = 0.6) {
 // -----------------------------------------------------------------------------
 // 人物
 // -----------------------------------------------------------------------------
-function buildPerson(def, M, rng) {
+export function buildPerson(def, M, rng) {
   const h = def.height, child = def.kind === 'child', elder = def.kind === 'elder';
   const o = def.outfit;
   const skinTone = def.skin || rng.pick([[0.93, 0.76, 0.64], [0.85, 0.66, 0.52], [0.66, 0.47, 0.34], [0.45, 0.31, 0.22], [0.96, 0.82, 0.72]]);
@@ -154,22 +154,28 @@ function buildPerson(def, M, rng) {
   const shoe = [0.08, 0.07, 0.06];
   const legCol = o.trousers || [0.14, 0.14, 0.16];
 
-  const L = 0.47 * h, thighL = 0.245 * h, shinL = 0.205 * h, torsoL = 0.30 * h;
-  const headR = (child ? 0.075 : 0.064) * h, shoulder = (child ? 0.1 : 0.118) * h, hipW = 0.052 * h;
+  // 成人依黃金比例（身高 = 1）：約 7.7～8 頭身、肚臍在 0.618、髖 0.48、膝 0.26、肩峰 0.82；
+  //   男：肩寬 ≈ 2 頭長、肩：腰 ≈ 1.618（倒三角）；女：肩 ≈ 臀、腰：臀 ≈ 0.7（沙漏）、腿較長。
+  // 小孩維持原本較大的頭與較短的四肢。
+  const fem = def.sex === 'f' && !child;
+  const L = (child ? 0.47 : fem ? 0.485 : 0.48) * h, thighL = (child ? 0.245 : 0.222) * h, shinL = (child ? 0.205 : fem ? 0.225 : 0.22) * h;
+  const torsoL = (child ? 0.30 : fem ? 0.36 : 0.365) * h;
+  const headR = (child ? 0.075 : 0.064) * h, shoulder = (child ? 0.1 : fem ? 0.104 : 0.124) * h, hipW = (child ? 0.052 : fem ? 0.056 : 0.05) * h;
   const upA = 0.17 * h, foA = 0.155 * h;
 
   const root = new THREE.Group();
   root.name = def.id;
   const hips = piv(root, 0, L, 0);
-  part(hips, sphere(0.09 * h, 12, 8), M.cloth, o.skirt || legCol, [0, 0, 0], null, [1.1, 0.6, 0.8]);
+  part(hips, sphere(0.08 * h, 14, 10), M.cloth, o.skirt || legCol, [0, 0, 0], null, [fem ? 1.12 : 1.05, 0.6, 0.78]);   // 骨盆（藏在外套下擺內）
 
   const torso = piv(hips, 0, 0, 0);
   const coatLen = o.skirt ? 0.0 : o.coatLen != null ? o.coatLen * h : def.kind === 'elder' || def.kind === 'local' ? 0.16 * h : 0.05 * h; // 穿裙子的人上衣到腰為止
   const coatFlare = (o.skirt ? 0.09 : o.coatFlare || 0.095) * h; // 長袍下擺半徑
   // 外套：由肩（斜肩）、胸、腰到臀與下襬的旋轉體；女性腰細、有胸線；下半身有衣褶
-  const fem = def.sex === 'f' && !child, foldPh = rng.next() * TAU;
-  const shR = (fem ? 0.088 : 0.097) * h, chR = (fem ? 0.083 : 0.092) * h;
-  const waR = (fem ? 0.064 : elder ? 0.09 : child ? 0.078 : 0.082) * h, hipR = (fem ? 0.094 : 0.088) * h;
+  const foldPh = rng.next() * TAU;
+  // 半徑 × 1.18 才是正面半寬：男 肩 0.124／腰 0.08／臀 0.094；女 肩 0.104／腰 0.073／臀 0.106
+  const shR = (child ? 0.085 : fem ? 0.088 : 0.105) * h, chR = (child ? 0.082 : fem ? 0.084 : 0.098) * h;
+  const waR = (child ? 0.078 : elder ? 0.088 : fem ? 0.062 : 0.068) * h, hipR = (child ? 0.08 : fem ? 0.09 : 0.08) * h;
   const coatProfile = [[0.001, torsoL + 0.03 * h], [0.045 * h, torsoL + 0.026 * h], [0.075 * h, torsoL + 0.008 * h], [shR, torsoL - 0.02 * h], [chR, torsoL - 0.07 * h],
     [(chR + waR) / 2, torsoL * 0.68], [waR, torsoL * 0.45], [hipR, 0.0], [Math.max(hipR, coatFlare * 0.55) * 1.02, -0.03 * h], [Math.max(coatFlare, hipR), -coatLen]].map(([r, y]) => new THREE.Vector2(r, y));
   const coatG = new THREE.LatheGeometry(coatProfile.reverse(), 36); // 輪廓由下往上，面才朝外（之前反了，外套變成只看得到內側 = 簍空）
@@ -208,12 +214,12 @@ function buildPerson(def, M, rng) {
   // 頭
   const neck = piv(torso, 0, torsoL + 0.01 * h, 0);
   part(neck, cyl(0.022 * h, 0.025 * h, 0.05 * h, 8), M.skin, skinTone, [0, 0.02 * h, 0]);
-  const head = piv(neck, 0, 0.045 * h, 0);
+  const head = piv(neck, 0, (child ? 0.045 : 0.02) * h, 0);
   {
     // SDF 雕刻的臉（眉骨、眼窩、鼻、嘴唇、耳）與頭髮：皮膚與頭髮分開上色
     const style = def.hairStyle || (elder ? 'short' : def.sex === 'f' ? 'long' : 'short');
     const parts = sdfHeadParts({ female: def.sex === 'f', hair: style, beard: !!def.beard, veil: o.hat === 'scarf', seed: rng.int(0, 2) }, 0.0085);
-    const k = (child ? 1.05 : 1.0) * h;
+    const k = (child ? 1.05 : fem ? 1.0 : 0.95) * h;   // 男性頭略小（約 7.7 頭身）
     part3(head, sdfGeo(parts.skin, skinTone, k, { brow: hairCol, F: def.sex === 'f' ? FACE.f : FACE.m }), M.skin, [0, headR, 0.004 * h]);
     if (parts.hair) part3(head, sdfGeo(parts.hair, hairCol, k), M.cloth, [0, headR, 0.004 * h]);
   }
