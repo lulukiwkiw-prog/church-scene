@@ -20,6 +20,7 @@ import * as sculpture from './sculpture.js';
 import * as environment from './environment.js';
 import * as actors from './actors.js';
 import { createAudio } from './audio.js';
+import { LOOKS } from './render/looks.js';
 import { SPOT_INFO, ABOUT } from './guide.js';
 
 const MODULES = [
@@ -49,19 +50,7 @@ try { const s = localStorage.getItem('nd-quality'); if (QUALITY[s]) quality = s;
 // -----------------------------------------------------------------------------
 // 光線與大氣（與影片相同）
 // -----------------------------------------------------------------------------
-const LOOK = {
-  exposure: 0.55,
-  sunColor: new THREE.Color(1.0, 0.72, 0.46),
-  sunIntensity: 7.0,
-  envIntensity: 0.55,
-  fog: {
-    nearColor: new THREE.Color(0.62, 0.55, 0.46),
-    farColor: new THREE.Color(0.50, 0.57, 0.68),
-    sunColor: new THREE.Color(0.95, 0.70, 0.45),
-    density: 0.0016,
-    heightFalloff: 0.012,
-  },
-};
+const { look: LOOK, sky: SKY_LOOK } = LOOKS.golden; // B：暖金低調
 const sunDir = new THREE.Vector3(...LAYOUT.sun.direction).normalize();
 
 let W = innerWidth, H = innerHeight;
@@ -108,6 +97,7 @@ async function load() {
   sky = createSky({
     sunDirection: sunDir, skyScale: 0.6, sunDiskScale: 60,
     hazeColor: new THREE.Color(0.62, 0.62, 0.64), groundColor: new THREE.Color(0.20, 0.17, 0.13),
+    ...SKY_LOOK,
   });
   scene.add(sky.mesh);
   scene.environment = bakeEnvironment(renderer, sky);

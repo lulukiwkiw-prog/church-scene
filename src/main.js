@@ -23,6 +23,7 @@ import { createSky, bakeEnvironment } from './render/sky.js';
 import { installAtmosphere } from './render/atmosphere.js';
 import { createSunLighting } from './render/lighting.js';
 import { createPost } from './render/post.js';
+import { LOOKS } from './render/looks.js';
 
 const MODULES = ['structure', 'facades', 'roofs', 'sculpture', 'environment', 'actors'];
 
@@ -56,22 +57,8 @@ const LOOK = {
   },
 };
 
-// 光線風格範本（?look=golden | overcast）；沒指定就是目前的版本
-const PRESETS = {
-  // B：秋分 17:43 的暖金色低調光（太陽方向與仰角幾乎相同，色溫更橘、整體較暗）
-  golden: {
-    look: { exposure: 0.5, sunColor: new THREE.Color(1.0, 0.50, 0.22), sunIntensity: 5.2, envIntensity: 0.42,
-      fog: { nearColor: new THREE.Color(0.66, 0.48, 0.34), farColor: new THREE.Color(0.52, 0.52, 0.62), sunColor: new THREE.Color(1.0, 0.52, 0.26), density: 0.0019, heightFalloff: 0.012 } },
-    sky: { turbidity: 3.6, mieCoefficient: 0.006, skySaturation: 1.55 },
-  },
-  // C：半陰天（低空雲層讓光變柔：太陽變弱、天空光變強）
-  overcast: {
-    look: { exposure: 0.62, sunColor: new THREE.Color(1.0, 0.86, 0.70), sunIntensity: 3.3, envIntensity: 0.95,
-      fog: { nearColor: new THREE.Color(0.60, 0.58, 0.55), farColor: new THREE.Color(0.52, 0.56, 0.64), sunColor: new THREE.Color(0.88, 0.76, 0.62), density: 0.0022, heightFalloff: 0.012 } },
-    sky: { cloudLow: 0.8, cloudDark: 0.95, cloudCover: 0.35, skySaturation: 1.3 },
-  },
-};
-const PRESET = PRESETS[q.get('look')] || null;
+// 光線風格（?look=golden | overcast；沒指定就是 default），定義在 render/looks.js
+const PRESET = LOOKS[q.get('look')] || null;
 if (PRESET) Object.assign(LOOK, PRESET.look);
 
 const sunDir = new THREE.Vector3(...LAYOUT.sun.direction).normalize();
