@@ -25,7 +25,7 @@ try {
     window.__manual = () => { fake = now(); manual = true; };
     window.__step = () => { fake += 100; const q = queue; queue = []; q.forEach((cb) => cb(fake)); };
   });
-  await page.goto(`http://127.0.0.1:${port}/explore.html`);
+  await page.goto(`http://127.0.0.1:${port}/${args.page || "index.html"}`);
   await page.waitForFunction(() => document.getElementById('hud') && !document.getElementById('hud').hidden, null, { timeout: 900000 });
   await page.waitForTimeout(1500);
   if (await page.locator('#help').isVisible()) await page.click('#help-close');
