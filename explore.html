@@ -51,7 +51,8 @@
   #coords { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); font: 12px/1 ui-monospace, monospace; color: var(--ink-dim); font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000; }
   #hint { top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; font-size: 13px; text-align: center; max-width: calc(100vw - 32px); }
   #toast { top: 22%; left: 50%; transform: translateX(-50%); font: 600 26px/1 var(--display); letter-spacing: 0.1em; text-shadow: 0 2px 8px rgba(0,0,0,0.7); pointer-events: none; }
-  #help { top: calc(70px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); width: min(300px, calc(100vw - 24px)); }
+  #help { top: calc(70px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); width: min(300px, calc(100vw - 24px)); max-height: calc(100vh - 160px); overflow-y: auto; z-index: 5; }
+  #help .close { font-size: 22px; padding: 6px 10px; }
   #help h2 { margin: 0 0 6px; font: 600 15px var(--display); letter-spacing: 0.08em; color: var(--gold); }
   #help dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; }
   #help dt { font-family: ui-monospace, monospace; color: var(--gold); }
@@ -73,7 +74,7 @@
   #knob { width: 40px; height: 40px; border-radius: 50%; background: rgba(217,163,91,0.65); }
   #updown { right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(80px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; }
   #updown button { width: 52px; height: 52px; font-size: 18px; background: var(--plate); touch-action: none; }
-  @media (max-width: 560px) { #title small { display: none; } #coords { display: none; } #about { top: calc(128px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 210px); } #spots::before { white-space: nowrap; } }
+  @media (max-width: 560px) { #title small { display: none; } #coords { display: none; } #about, #help { top: calc(128px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 210px); } #spots::before { white-space: nowrap; } }
   @media (prefers-reduced-motion: reduce) { #load-bar::after { transition: none; } }
 </style>
 <script type="importmap">
@@ -106,6 +107,7 @@
     </div>
   </div>
   <div id="help" class="plate" hidden>
+    <button type="button" class="close" id="help-close" aria-label="關閉操作說明">×</button>
     <h2>操作</h2>
     <dl id="help-keys">
       <dt>W / S</dt><dd>前進 / 後退</dd>

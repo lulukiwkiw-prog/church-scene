@@ -700,6 +700,8 @@ const actors = {
     dance: { center: [-72, -1], ringRadius: 3.0, tempoBpm: 92 }, // 愛絲梅拉達與伴舞（節拍跟配樂一樣）
     esmeralda: { id: 'esmeralda', height: 1.64, skin: [0.78, 0.58, 0.42], hair: [0.05, 0.04, 0.04],
       outfit: { coat: [0.96, 0.93, 0.86], skirt: [0.82, 0.06, 0.10], skirtLen: 0.5, skirtFlare: 0.22, sash: [0.92, 0.70, 0.18], headband: [0.92, 0.70, 0.18] } },
+    // 小山羊佳麗（Djali）：在舞圈內繞著愛絲梅拉達蹦跳
+    djali: { id: 'djali', coat: [0.96, 0.94, 0.89], horns: [0.72, 0.64, 0.50], collar: [0.92, 0.70, 0.18], radius: 1.7, speed: 1.3 },
     dancers: [
       { id: 'dancer1', height: 1.6, outfit: { coat: [0.80, 0.74, 0.62], skirt: [0.38, 0.22, 0.40], skirtLen: 0.48, skirtFlare: 0.18 } },
       { id: 'dancer2', height: 1.62, outfit: { coat: [0.78, 0.72, 0.60], skirt: [0.55, 0.42, 0.18], skirtLen: 0.48, skirtFlare: 0.18 } },

@@ -219,7 +219,8 @@ function buildPerson(def, M, rng) {
 // -----------------------------------------------------------------------------
 function buildQuadruped(def, M, kind) {
   const S = kind === 'cat' ? { H: 0.24, len: 0.42, r: 0.075, head: 0.065, leg: 0.022, tail: 0.3 }
-    : def.size === 'small' ? { H: 0.26, len: 0.40, r: 0.085, head: 0.075, leg: 0.026, tail: 0.18 }
+    : kind === 'goat' ? { H: 0.42, len: 0.58, r: 0.12, head: 0.075, leg: 0.024, tail: 0.08 }
+      : def.size === 'small' ? { H: 0.26, len: 0.40, r: 0.085, head: 0.075, leg: 0.026, tail: 0.18 }
       : { H: 0.46, len: 0.66, r: 0.13, head: 0.1, leg: 0.04, tail: 0.3 };
   const col = def.coat, dark = col.map((v) => v * 0.55);
   const root = new THREE.Group();
@@ -234,7 +235,12 @@ function buildQuadruped(def, M, kind) {
   part(head, sphere(S.head * 0.14, 6, 4), M.cloth, [0.04, 0.03, 0.03], [0, -S.head * 0.12, S.head * (1.15 + 0.5 * snout)]);
   for (const s of [-1, 1]) {
     part(head, sphere(S.head * 0.12, 6, 4), M.cloth, kind === 'cat' ? [0.55, 0.62, 0.20] : [0.06, 0.04, 0.03], [s * S.head * 0.42, S.head * 0.22, S.head * 0.82]);
-    if (kind === 'cat' || def.size === 'small') part(head, new THREE.ConeGeometry(S.head * 0.35, S.head * 0.7, 4), M.fur, dark, [s * S.head * 0.5, S.head * 0.85, -S.head * 0.1], [0, 0, -s * 0.25]);
+    if (kind === 'goat') {
+      // 山羊：往後彎的角、橫向的耳朵
+      const horn = new THREE.ConeGeometry(S.head * 0.17, S.head * 1.3, 6); horn.translate(0, S.head * 0.65, 0);
+      part(head, horn, M.fur, def.horns, [s * S.head * 0.35, S.head * 0.75, -S.head * 0.15], [-0.9, 0, -s * 0.18]);
+      part(head, box(S.head * 0.7, S.head * 0.2, S.head * 0.35), M.fur, col, [s * S.head * 0.9, S.head * 0.25, -S.head * 0.15], [0, 0, s * 0.35]);
+    } else if (kind === 'cat' || def.size === 'small') part(head, new THREE.ConeGeometry(S.head * 0.35, S.head * 0.7, 4), M.fur, dark, [s * S.head * 0.5, S.head * 0.85, -S.head * 0.1], [0, 0, -s * 0.25]);
     else part(head, box(S.head * 0.25, S.head * 0.9, S.head * 0.5), M.fur, dark, [s * S.head * 0.95, -S.head * 0.1, -S.head * 0.1], [0, 0, s * 0.25]);
   }
   const legs = [];
@@ -248,7 +254,11 @@ function buildQuadruped(def, M, kind) {
   }
   const tail = piv(body, 0, S.r * 0.5, -S.len / 2 + S.r * 0.3);
   part(tail, limb(S.leg * 0.9, S.tail), M.fur, kind === 'cat' ? col : dark, [0, 0, 0], null);
-  tail.rotation.x = kind === 'cat' ? 2.4 : 2.2;
+  tail.rotation.x = kind === 'cat' ? 2.4 : kind === 'goat' ? 1.0 : 2.2; // 山羊的短尾巴往上翹
+  if (kind === 'goat') {
+    part(head, new THREE.ConeGeometry(S.head * 0.18, S.head * 0.6, 5), M.fur, col.map((v) => v * 0.92), [0, -S.head * 0.85, S.head * 0.95], [Math.PI, 0, 0]); // 鬍子
+    part(neck, new THREE.TorusGeometry(S.r * 0.55, S.r * 0.09, 5, 12), M.cloth, def.collar, [0, S.r * 0.25, S.r * 0.2], [Math.PI / 2 - 0.5, 0, 0]); // 金色項圈
+  }
   const collar = kind === 'dog' ? part(neck, new THREE.TorusGeometry(S.r * 0.62, S.r * 0.08, 5, 12), M.cloth, [0.6, 0.1, 0.1], [0, S.r * 0.25, S.r * 0.2], [Math.PI / 2 - 0.5, 0, 0]) : null;
 
   const rig = { root, body, neck, head, legs, tail, S, collar };
@@ -701,6 +711,31 @@ export function build({ layout, materials, variant, rng }) {
         d.look(0, -0.05);
       });
     });
+
+    // 小山羊佳麗：繞著愛絲梅拉達蹦跳，她旋轉時佳麗用後腳站起來
+    if (ST.djali) {
+      const dj = ST.djali;
+      const g = buildQuadruped(dj, M, 'goat');
+      group.add(g.root);
+      updaters.push((t) => {
+        const beat = t / BEAT_S;
+        const [cx, cz] = danceCenter(t);
+        const th = -(dj.speed / dj.radius) * t + 1.2; // 與伴舞反方向
+        const x = cx + Math.cos(th) * dj.radius, z = cz + Math.sin(th) * dj.radius;
+        const b8 = mod(beat, 8), rear = b8 > 6 ? Math.sin(((b8 - 6) / 2) * Math.PI) : 0;
+        g.root.position.set(x, 0, z);
+        g.root.rotation.y = rear > 0.05 ? yawOf(cx - x, cz - z) : yawOf(Math.sin(th), -Math.cos(th));
+        g.walk(beat * Math.PI, 0.55 * (1 - rear), true);
+        const hop = Math.abs(Math.sin(beat * Math.PI)) * (1 - rear);
+        g.root.position.y = 0.06 * hop;
+        // 後腳站立：身體往上翹、前腳往前收
+        g.body.rotation.x = -1.0 * rear;
+        g.body.position.y += 0.2 * rear;
+        for (const lg of g.legs) if (lg.front) { lg.hip.rotation.x -= 0.9 * rear; lg.knee.rotation.x -= 0.8 * rear; } else lg.hip.rotation.x += 1.0 * rear;
+        g.neck.rotation.set(0.3 * rear - 0.1, 0, 0);
+        g.tail.rotation.set(1.0 + 0.3 * Math.sin(t * 9), 0.3 * Math.sin(t * 7), 0);
+      });
+    }
 
     // 加西莫多：駝背、肩膀一高一低，趴在北塔欄杆後偷看，不時縮回去躲
     {

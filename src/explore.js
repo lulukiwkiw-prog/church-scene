@@ -392,6 +392,9 @@ function buildUI() {
   });
   $('help-toggle').addEventListener('click', () => { $('help').hidden = !$('help').hidden; });
   $('info-close').addEventListener('click', () => { $('info').hidden = true; });
+  $('help-close').addEventListener('click', () => { $('help').hidden = true; });
+  // 手機：一碰畫面就收起說明與介紹面板，直接開始操作
+  canvas.addEventListener('touchstart', () => { $('help').hidden = true; $('about').hidden = true; }, { passive: true });
   // 關於聖母院：簡介、年表、說明
   $('about-intro').textContent = ABOUT.intro;
   $('about-note').textContent = ABOUT.note;
