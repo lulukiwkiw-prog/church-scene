@@ -3,6 +3,7 @@
 // 由呼叫者以矩陣縮放到實際高度。坐像（pose 'seat'）高度約 0.72（同一套頭身比例）。
 import * as THREE from 'three';
 import { smooth, lerp, clamp, transM, scaleM } from './geo.js';
+import { sdfHead, sdfArm, addMesh } from './sdfhuman.js';
 
 const TAU = Math.PI * 2;
 const HEAD_Y = 0.918;       // 站像頭中心
@@ -119,6 +120,10 @@ const RES = [
 /** 在 M 目前的座標系（正規化 1 = 身高）畫一尊人像 */
 export function figure(M, S) {
   const R = RES[S.lod];
+  // 近看的人像（lod 2）：臉、手與袖子改用雕刻式網格（見 sdfhuman.js）；野獸、裸像、無頭像維持原做法
+  const sdf = S.lod === 2 && S.pose !== 'nude' && !S.headless && !S.head.beast && S.sdf !== false;
+  S.head.sdf = sdf;
+  if (sdf && S.head.seed === undefined) S.head.seed = Math.floor((S.foldPhase / TAU) * 4) % 4;
   const seat = S.pose === 'seat', nude = S.pose === 'nude';
   const drop = seat ? SEAT_DROP : 0;
   const shY = SHOULDER_Y - drop;
@@ -155,10 +160,19 @@ export function figure(M, S) {
     const L = Math.hypot(dx, dy, dz);
     const hand = [wr[0] + dx / L * 0.03, wr[1] + dy / L * 0.03, wr[2] + dz / L * 0.03];
     hands[side] = { pos: hand, dir: [dx / L, dy / L, dz / L], s };
-    const sleeve = nude ? [0.03, 0.026, 0.022, 0.02] : [0.04, 0.036, 0.034, 0.036];
-    M.tube([sh, el, wr], [sleeve[0], sleeve[1], sleeve[3]], R.au, R.as, 0.9);
-    if (!nude && dy < 0.12) sleeveDrape(M, el, wr, s, R);
-    M.ellipsoid(hand[0], hand[1], hand[2], 0.017, 0.026, 0.016, 7, 5, 0.95);
+    if (sdf) {
+      const A = sdfArm(S.arms[side], pose);
+      M.push(transM(sh[0], sh[1], sh[2]));
+      if (s < 0) M.push(scaleM(-1, 1, 1));   // 做的是 +X 側；-X 側鏡射（Mesher 會自動處理繞向）
+      addMesh(M, A.sleeve); addMesh(M, A.hand);
+      if (s < 0) M.pop();
+      M.pop();
+    } else {
+      const sleeve = nude ? [0.03, 0.026, 0.022, 0.02] : [0.04, 0.036, 0.034, 0.036];
+      M.tube([sh, el, wr], [sleeve[0], sleeve[1], sleeve[3]], R.au, R.as, 0.9);
+      if (!nude && dy < 0.12) sleeveDrape(M, el, wr, s, R);
+      M.ellipsoid(hand[0], hand[1], hand[2], 0.017, 0.026, 0.016, 7, 5, 0.95);
+    }
   }
 
   // ---- 持物 ----
@@ -282,6 +296,7 @@ export function head(M, H, R) {
 function headInner(M, H, R) {
   const rx = 0.05, ry = 0.068, rz = 0.057;
   if (H.beast) { beastFaceSmall(M, H, R); return; }
+  if (H.sdf) { addMesh(M, sdfHead(H)); headAccessories(M, H, R); return; }
   const fem = H.female;
   const curly = H.hair === 'curly', long = H.hair === 'long', bald = H.hair === 'bald', tons = H.hair === 'tonsure';
   const covered = H.veil || H.cap || H.mitre || H.helm;
@@ -336,7 +351,11 @@ function headInner(M, H, R) {
   M.rod([0, -0.07, -0.005], [0, -0.03, 0.0], 0.03, 0.03, 8, 0.85);
   // 耳（被頭髮蓋住時省略）
   if (H.hair === 'tonsure' || bald) for (const s of [-1, 1]) M.ellipsoid(s * 0.049, 0.0, -0.003, 0.008, 0.018, 0.012, 6, 4, 0.85);
+  headAccessories(M, H, R);
+}
 
+// 頭飾：頭紗、王冠、主教冠、尖帽、頭盔、蒙眼布、光環（雕刻式頭與舊式頭共用）
+function headAccessories(M, H, R) {
   if (H.veil) veil(M, R, H);
   if (H.crown) crown(M, R, H.veil ? 1.1 : 1.02);
   if (H.mitre) {

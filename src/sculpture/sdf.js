@@ -113,3 +113,70 @@ export function surfaceNets(f, x0, y0, z0, h, nx, ny, nz, block = 8) {
   }
   return { pos: Float32Array.from(verts), idx: Uint32Array.from(idx) };
 }
+
+/** 去掉小碎片：只保留三角形數 ≥ minTris 的連通塊 */
+export function dropFragments(pos, idx, minTris) {
+  const n = pos.length / 3, parent = new Int32Array(n).map((_, i) => i);
+  const find = (a) => { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; };
+  for (let t = 0; t < idx.length; t += 3) { const a = find(idx[t]), b = find(idx[t + 1]), c = find(idx[t + 2]); parent[b] = a; parent[find(c)] = a; }
+  const count = new Map();
+  for (let t = 0; t < idx.length; t += 3) { const r = find(idx[t]); count.set(r, (count.get(r) || 0) + 1); }
+  const out = [];
+  for (let t = 0; t < idx.length; t += 3) if (count.get(find(idx[t])) >= minTris) out.push(idx[t], idx[t + 1], idx[t + 2]);
+  return Uint32Array.from(out);
+}
+
+/** Taubin 平滑（λ|μ）：去掉階梯感與尖刺，又不會讓整體縮小 */
+export function smoothMesh(pos, idx, iterations = 2) {
+  const n = pos.length / 3, sum = new Float32Array(n * 3), cnt = new Int32Array(n);
+  const pass = (lam) => {
+    sum.fill(0); cnt.fill(0);
+    for (let t = 0; t < idx.length; t += 3) {
+      for (let e = 0; e < 3; e++) {
+        const a = idx[t + e], b = idx[t + ((e + 1) % 3)];
+        sum[3 * a] += pos[3 * b]; sum[3 * a + 1] += pos[3 * b + 1]; sum[3 * a + 2] += pos[3 * b + 2]; cnt[a]++;
+        sum[3 * b] += pos[3 * a]; sum[3 * b + 1] += pos[3 * a + 1]; sum[3 * b + 2] += pos[3 * a + 2]; cnt[b]++;
+      }
+    }
+    for (let i = 0; i < n; i++) if (cnt[i]) for (let k = 0; k < 3; k++) pos[3 * i + k] += lam * (sum[3 * i + k] / cnt[i] - pos[3 * i + k]);
+  };
+  for (let it = 0; it < iterations; it++) { pass(0.5); pass(-0.53); }
+}
+
+/** 面積加權的頂點法線 */
+export function vertexNormals(pos, idx) {
+  const nrm = new Float32Array(pos.length);
+  for (let t = 0; t < idx.length; t += 3) {
+    const a = idx[t], b = idx[t + 1], c = idx[t + 2];
+    const ux = pos[3 * b] - pos[3 * a], uy = pos[3 * b + 1] - pos[3 * a + 1], uz = pos[3 * b + 2] - pos[3 * a + 2];
+    const vx = pos[3 * c] - pos[3 * a], vy = pos[3 * c + 1] - pos[3 * a + 1], vz = pos[3 * c + 2] - pos[3 * a + 2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    for (const v of [a, b, c]) { nrm[3 * v] += nx; nrm[3 * v + 1] += ny; nrm[3 * v + 2] += nz; }
+  }
+  for (let i = 0; i < nrm.length; i += 3) { const l = hypot(nrm[i], nrm[i + 1], nrm[i + 2]) || 1; nrm[i] /= l; nrm[i + 1] /= l; nrm[i + 2] /= l; }
+  return nrm;
+}
+
+
+/**
+ * 一站式：場 → 網格（去碎片、平滑）→ 頂點色（由場算環境遮蔽，凹處較暗）。
+ * box = [x0, y0, z0, x1, y1, z1]；回傳 { pos, idx, col }（col 為單一灰階 0.3–1）
+ */
+export function bakeMesh(f, box, h, o = {}) {
+  const [x0, y0, z0, x1, y1, z1] = box;
+  const nx = Math.ceil((x1 - x0) / h), ny = Math.ceil((y1 - y0) / h), nz = Math.ceil((z1 - z0) / h);
+  const raw = surfaceNets(f, x0, y0, z0, h, nx, ny, nz, o.block || 4);
+  const idx = dropFragments(raw.pos, raw.idx, o.minTris ?? 60);
+  const pos = raw.pos;
+  if (o.smooth !== 0) smoothMesh(pos, idx, o.smooth ?? 1);
+  const nrm = vertexNormals(pos, idx);
+  const n = pos.length / 3, col = new Float32Array(n), ao = o.aoDist ?? 0.02;
+  for (let i = 0; i < n; i++) {
+    const x = pos[3 * i], y = pos[3 * i + 1], z = pos[3 * i + 2];
+    const open = clamp(f(x + nrm[3 * i] * ao, y + nrm[3 * i + 1] * ao, z + nrm[3 * i + 2] * ao) / ao);
+    let c = 0.5 + 0.5 * Math.pow(open, 0.7);
+    c *= 0.9 + 0.1 * (nrm[3 * i + 1] * 0.5 + 0.5);
+    col[i] = clamp(c, 0.3, 1);
+  }
+  return { pos, idx, col };
+}
