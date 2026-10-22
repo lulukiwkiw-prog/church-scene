@@ -340,7 +340,15 @@ function buildUI() {
   const sb = $('sound'), mb = $('music');
   sb.addEventListener('click', () => {
     if (audio.running) { audio.stop(); sb.textContent = '聲音：關'; sb.setAttribute('aria-pressed', 'false'); mb.hidden = true; }
-    else { audio.start(); sb.textContent = '聲音：開'; sb.setAttribute('aria-pressed', 'true'); mb.hidden = false; }
+    else {
+      const ready = audio.start();
+      sb.setAttribute('aria-pressed', 'true'); mb.hidden = false;
+      if (audio.ready) sb.textContent = '聲音：開';
+      else {
+        sb.textContent = '聲音：準備中…'; // 第一次開啟要先把音樂合成成音檔（幾秒）
+        Promise.resolve(ready).then(() => { if (audio.running) sb.textContent = '聲音：開'; });
+      }
+    }
   });
   mb.addEventListener('click', () => {
     audio.setMusic(!audio.musicOn);

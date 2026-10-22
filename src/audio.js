@@ -8,6 +8,7 @@
 //   輕柔哼唱聲（共振峰合成的「嗚」母音）。鐘聲在音樂第 5 小節輕輕疊入當背景。
 // - 環境音：遠處城市的輕微底噪、鴿群的咕咕聲（放在鴿群位置）。
 // 瀏覽器規定聲音只能在使用者點擊後開始：start() 必須在 click 事件裡呼叫。
+// 音樂與鐘聲在開聲音時預先合成成音檔，由音訊執行緒循環播放（畫面忙碌也不卡頓）。
 // -----------------------------------------------------------------------------
 
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
@@ -47,7 +48,7 @@ const BPM = 92, BEAT = 60 / BPM, BAR = 4 * BEAT, SIX = BEAT / 4;
 const PEAL_BAR = 4; // 鐘聲在第 5 小節加入（約第 10.4 秒）
 // 鐘聲音量（版本 2：原本較大聲的音量；版本 1 為 0.065 / 0.11）
 const BELL_GAIN = 0.16, TOLL_GAIN = 0.28;
-const MUSIC_UNDER_BELLS = 1; // 鐘響時音樂維持原音量（主旋律不壓低）
+const MUSIC_LEVEL = 0.7; // 背景音樂音量 70%
 // 巴薩諾瓦吉他節奏（以十六分音符為格，兩小節一組）：和弦撥奏與拇指低音
 const GUITAR_HITS = [[0, 3, 6, 10, 13], [2, 6, 10, 12]];
 const THUMB = [0, 6, 8, 14];
@@ -66,7 +67,7 @@ export function createAudio({ layout }) {
   const flock = layout.actors.pigeons[0].center;
 
   let ctx = null, master, musicBus, bellBus, ambBus, timer = null;
-  let musicOn = true, bar = 0, nextBarTime = 0, pass = 0, nextCoo = 0;
+  let musicOn = true;
   let seed = 12345;
   const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; // 只用於演奏的細微人性化
 
@@ -108,10 +109,7 @@ export function createAudio({ layout }) {
     src.connect(hp).connect(g).connect(out);
     src.start(when);
   }
-  function peal(start) {
-    // 鐘聲傳得遠：衰減比一般聲源緩和
-    const np = panner(towerPos(north), 30, 0.35); np.connect(bellBus);
-    const sp = panner(towerPos(south), 30, 0.35); sp.connect(bellBus);
+  function peal(start, np, sp) {
     let t = start;
     for (let round = 0; round < 4; round++) {
       PEAL.forEach((f, i) => {
@@ -122,10 +120,6 @@ export function createAudio({ layout }) {
     }
     t += BEAT;
     for (let k = 0; k < 3; k++) { bell(TOLL, t, TOLL_GAIN, sp); t += 3 * BEAT; }
-    // 鐘響時音樂稍微讓開（不停），鐘聲結束再回來
-    const g = musicBus.gain;
-    g.setTargetAtTime(musicOn ? MUSIC_UNDER_BELLS : 0, start - 0.3, 0.5);
-    g.setTargetAtTime(musicOn ? 1 : 0, t, 1.2);
     return t;
   }
 
@@ -222,7 +216,7 @@ export function createAudio({ layout }) {
     mix.connect(env).connect(dest);
     o.start(when); vib.start(when); o.stop(when + dur + 0.3); vib.stop(when + dur + 0.3);
   }
-  function scheduleBar(b, t0) {
+  function scheduleBar(b, t0, musicBus, pass) {
     const B = SCORE[b], second = pass % 2 === 1;
     const sw = (i) => t0 + i * SIX + (rand() - 0.5) * 0.012; // 十六分音符格＋一點人性化
     // 吉他：切分和弦（高三個音）＋拇指低音
@@ -258,9 +252,7 @@ export function createAudio({ layout }) {
     src.connect(hp).connect(lp).connect(g).connect(ambBus);
     src.start();
   }
-  function coo(when) {
-    const p = panner([flock[0] + (rand() - 0.5) * 6, 0.3, flock[1] + (rand() - 0.5) * 6], 4, 1.4);
-    p.connect(ambBus);
+  function coo(when, p) {
     for (const [dt, f, len] of [[0, 330, 0.28], [0.36, 300, 0.22], [0.62, 280, 0.5]]) {
       const o = ctx.createOscillator(); o.type = 'sine';
       o.frequency.setValueAtTime(f, when + dt);
@@ -277,25 +269,90 @@ export function createAudio({ layout }) {
     }
   }
 
-  // ---------------- 排程 ----------------
-  function tick() {
-    const now = ctx.currentTime, ahead = now + 0.3;
-    // 音樂一開始就播；每兩遍的第 5 小節（約第 10 秒）鐘聲輕輕疊進來當背景，
-    // 鐘的節奏對齊配樂的八分音符、音也在同一個 D 大調裡，不會打亂旋律。
-    while (nextBarTime < ahead) {
-      if (bar === PEAL_BAR && pass % 2 === 0) peal(nextBarTime);
-      if (musicOn) scheduleBar(bar, nextBarTime);
-      nextBarTime += BAR;
-      bar = (bar + 1) % SCORE.length;
-      if (bar === 0) pass++;
+  // ---------------- 預先合成（離線）----------------
+  // 轉視角時畫面運算會佔住主執行緒；若邊播邊排音符就會卡頓。
+  // 所以一開聲音就把整段音樂（兩遍，約 83 秒）、一輪鐘聲、鴿子叫聲先算成音檔，
+  // 交給瀏覽器的音訊執行緒循環播放，畫面再忙也不影響。
+  async function bake(seconds, channels, fill) {
+    const sr = 44100, live = ctx;
+    const off = new OfflineAudioContext(channels, Math.ceil(seconds * sr), sr);
+    ctx = off; // 合成函式都用 ctx 建節點：暫時指向離線環境
+    try { fill(off); } finally { ctx = live; }
+    return off.startRendering();
+  }
+  // 音樂切成每 4 小節（約 10 秒）一段：第一段算好就開始播，其餘在背景陸續算好
+  const CHUNK_BARS = 4, LEAD = 0.1, TAIL = 3;
+  const CHUNKS = (2 * SCORE.length) / CHUNK_BARS;
+  const bakeChunk = (k) => bake(LEAD + CHUNK_BARS * BAR + TAIL, 2, (off) => {
+    const bus = off.createGain(); bus.connect(off.destination);
+    for (let i = 0; i < CHUNK_BARS; i++) {
+      const g = k * CHUNK_BARS + i; // 兩遍中的第幾小節
+      scheduleBar(g % SCORE.length, LEAD + i * BAR, bus, Math.floor(g / SCORE.length));
     }
-    if (now + 0.3 > nextCoo) { coo(Math.max(now + 0.1, nextCoo)); nextCoo = nextCoo + 5 + rand() * 7; }
+  });
+
+  let assets = null, preparing = null, chunks = [], t0 = 0, nextChunk = 0, nextBells = 0, nextCoo = 0;
+  async function prepare() {
+    chunks[0] = await bakeChunk(0);
+    const cooBuf = await bake(1.3, 1, (off) => { const g = off.createGain(); g.connect(off.destination); coo(0.02, g); });
+    assets = { cooBuf, bells: null };
+    begin();
+    // 鐘（左聲道 = 北塔、右聲道 = 南塔）要在第 5 小節前備好，先算
+    chunks[1] = await bakeChunk(1);
+    assets.bells = await bake(24, 2, (off) => {
+      const m = off.createChannelMerger(2); m.connect(off.destination);
+      const nb = off.createGain(), sb = off.createGain();
+      nb.connect(m, 0, 0); sb.connect(m, 0, 1);
+      peal(0.05, nb, sb);
+    });
+    for (let k = 2; k < CHUNKS; k++) { chunks[k] = await bakeChunk(k); tick(); }
+  }
+  function begin() {
+    t0 = ctx.currentTime + 0.2;
+    nextChunk = 0;
+    nextBells = t0 + PEAL_BAR * BAR; // 第 5 小節鐘聲加入，之後每兩遍一次
+    nextCoo = t0 + 3;
+    tick();
+  }
+
+  function playBells(when) {
+    const src = ctx.createBufferSource(); src.buffer = assets.bells;
+    const split = ctx.createChannelSplitter(2);
+    // 鐘聲傳得遠：衰減比一般聲源緩和
+    const np = panner(towerPos(north), 30, 0.35), sp = panner(towerPos(south), 30, 0.35);
+    src.connect(split); split.connect(np, 0); split.connect(sp, 1);
+    np.connect(bellBus); sp.connect(bellBus);
+    src.start(when);
+  }
+  function playCoo(when) {
+    const src = ctx.createBufferSource(); src.buffer = assets.cooBuf;
+    src.playbackRate.value = 0.92 + rand() * 0.16;
+    const p = panner([flock[0] + (rand() - 0.5) * 6, 0.3, flock[1] + (rand() - 0.5) * 6], 4, 1.4);
+    src.connect(p).connect(ambBus);
+    src.start(when);
+  }
+  // 提前 20 秒排好要播的音檔段落：主執行緒卡住幾秒也不會掉音
+  function tick() {
+    if (!assets) return;
+    const ahead = ctx.currentTime + 20;
+    for (;;) {
+      const when = t0 + nextChunk * CHUNK_BARS * BAR;
+      const buf = chunks[nextChunk % CHUNKS];
+      if (when >= ahead || !buf) break;
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      src.connect(musicBus);
+      src.start(Math.max(ctx.currentTime, when - LEAD));
+      nextChunk++;
+    }
+    while (assets.bells && nextBells < ahead) { playBells(nextBells); nextBells += 2 * SCORE.length * BAR; }
+    while (nextCoo < ahead) { playCoo(nextCoo); nextCoo += 5 + rand() * 7; }
   }
 
   return {
     get running() { return !!ctx && ctx.state === 'running' && !!timer; },
     get musicOn() { return musicOn; },
-    /** 必須在使用者點擊事件內呼叫 */
+    get ready() { return !!assets; },
+    /** 必須在使用者點擊事件內呼叫；回傳 Promise（音樂預先合成完成時） */
     start() {
       if (!ctx) {
         ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -309,28 +366,33 @@ export function createAudio({ layout }) {
         verb.buffer = ir;
         const wet = ctx.createGain(); wet.gain.value = 0.3;
         verb.connect(wet).connect(master);
-        musicBus = ctx.createGain(); musicBus.connect(master);
+        musicBus = ctx.createGain(); musicBus.gain.value = musicOn ? MUSIC_LEVEL : 0; musicBus.connect(master);
         const mv = ctx.createGain(); mv.gain.value = 0.22; musicBus.connect(mv).connect(verb);
         bellBus = ctx.createGain(); bellBus.gain.value = 1; bellBus.connect(master);
         const bv = ctx.createGain(); bv.gain.value = 0.5; bellBus.connect(bv).connect(verb);
         ambBus = ctx.createGain(); ambBus.gain.value = 0.5; ambBus.connect(master);
         startAmbience();
-        nextBarTime = ctx.currentTime + 0.2;
-        nextCoo = ctx.currentTime + 3;
+        // 第一段音樂算好（約一秒內）就開始播
+        preparing = new Promise((resolve) => {
+          prepare().catch((e) => console.error('[audio]', e));
+          const wait = () => (assets ? resolve() : setTimeout(wait, 100));
+          wait();
+        });
       }
       ctx.resume();
       master.gain.setTargetAtTime(0.8, ctx.currentTime, 0.2);
-      if (!timer) timer = setInterval(tick, 80);
+      if (!timer) timer = setInterval(tick, 1000);
+      return preparing;
     },
     stop() {
       if (!ctx) return;
       master.gain.setTargetAtTime(0, ctx.currentTime, 0.15);
       clearInterval(timer); timer = null;
-      setTimeout(() => { if (!timer) ctx.suspend(); }, 600);
+      setTimeout(() => { if (!timer) ctx.suspend(); }, 600); // 暫停整個音訊時鐘：音樂與鐘聲維持同步
     },
     setMusic(on) {
       musicOn = on;
-      if (ctx) musicBus.gain.setTargetAtTime(on ? 1 : 0, ctx.currentTime, 0.3);
+      if (ctx) musicBus.gain.setTargetAtTime(on ? MUSIC_LEVEL : 0, ctx.currentTime, 0.3);
     },
     /** 每格：把聽者放在相機位置與方向 */
     update(camera) {
