@@ -19,6 +19,7 @@ import * as roofs from './roofs.js';
 import * as sculpture from './sculpture.js';
 import * as environment from './environment.js';
 import * as actors from './actors.js';
+import { createAudio } from './audio.js';
 
 const MODULES = [
   ['structure', '牆體與飛扶壁', structure],
@@ -82,6 +83,7 @@ scene.add(camera);
 let sky, lighting, post;
 const waterTextures = new Map();
 const animated = [];
+const audio = createAudio({ layout: LAYOUT });
 
 function makePost() {
   const q = QUALITY[quality];
@@ -367,6 +369,16 @@ function buildUI() {
     list.appendChild(b);
   }
   $('mode').addEventListener('click', () => setFly(!state.fly));
+  const sb = $('sound'), mb = $('music');
+  sb.addEventListener('click', () => {
+    if (audio.running) { audio.stop(); sb.textContent = '聲音：關'; sb.setAttribute('aria-pressed', 'false'); mb.hidden = true; }
+    else { audio.start(); sb.textContent = '聲音：開'; sb.setAttribute('aria-pressed', 'true'); mb.hidden = false; }
+  });
+  mb.addEventListener('click', () => {
+    audio.setMusic(!audio.musicOn);
+    mb.textContent = audio.musicOn ? '音樂：開' : '音樂：關';
+    mb.setAttribute('aria-pressed', String(audio.musicOn));
+  });
   $('film').addEventListener('click', () => {
     state.film = !state.film;
     state.filmT = 0;
@@ -437,6 +449,7 @@ function frame() {
     tex.offset.set(-(ox - Math.floor(ox)), -(oy - Math.floor(oy)));
   }
   for (const u of animated) u(elapsed);
+  audio.update(camera);
   lighting.update(camera);
   post.composer.render(dt);
 
