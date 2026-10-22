@@ -20,6 +20,7 @@ import * as sculpture from './sculpture.js';
 import * as environment from './environment.js';
 import * as actors from './actors.js';
 import { createAudio } from './audio.js';
+import { SPOT_INFO, ABOUT } from './guide.js';
 
 const MODULES = [
   ['structure', '牆體與飛扶壁', structure],
@@ -201,7 +202,18 @@ function goTo(spot, instant = false) {
   camera.position.set(...spot.pos);
   lookAtPoint(spot.look);
   vel.set(0, 0, 0);
-  if (!instant) toast(spot.name);
+  if (!instant) { toast(spot.name); showInfo(spot.id); }
+}
+
+// 地點介紹卡
+function showInfo(id) {
+  const info = SPOT_INFO[id];
+  if (!info) { $('info').hidden = true; return; }
+  $('info-title').textContent = info.title;
+  $('info-era').textContent = info.era;
+  $('info-text').textContent = info.text;
+  $('info').hidden = false;
+  $('info').scrollTop = 0;
 }
 
 const isl = LAYOUT.surroundings.island;
@@ -374,6 +386,19 @@ function buildUI() {
     label();
   });
   $('help-toggle').addEventListener('click', () => { $('help').hidden = !$('help').hidden; });
+  $('info-close').addEventListener('click', () => { $('info').hidden = true; });
+  // 關於聖母院：簡介、年表、說明
+  $('about-intro').textContent = ABOUT.intro;
+  $('about-note').textContent = ABOUT.note;
+  for (const [year, what] of ABOUT.timeline) {
+    const li = document.createElement('li');
+    const b = document.createElement('b'); b.textContent = year;
+    const sp = document.createElement('span'); sp.textContent = what;
+    li.append(b, sp);
+    $('about-timeline').appendChild(li);
+  }
+  $('about-toggle').addEventListener('click', () => { $('about').hidden = !$('about').hidden; if (!$('about').hidden) $('help').hidden = true; });
+  $('about-close').addEventListener('click', () => { $('about').hidden = true; });
   $('help-touch').hidden = !isTouch;
   $('help-keys').hidden = isTouch;
   $('hint').textContent = isTouch ? '左下拖曳移動 · 右邊拖曳轉視角 · ▲▼ 升降' : 'W S 前進後退 · A D 左右 · E Q 上升下降 · 按住滑鼠拖曳轉視角 · Shift 加速';

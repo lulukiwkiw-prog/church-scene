@@ -57,11 +57,23 @@
   #help dt { font-family: ui-monospace, monospace; color: var(--gold); }
   #help dd { margin: 0; color: var(--ink-dim); }
   #help p { margin: 8px 0 0; font-size: 12px; color: var(--ink-dim); }
+  .close { position: absolute; top: 6px; right: 6px; border: 0; font-size: 18px; line-height: 1; padding: 4px 8px; color: var(--ink-dim); }
+  #info { position: fixed; z-index: 3; left: max(12px, env(safe-area-inset-left, 0px)); bottom: calc(64px + env(safe-area-inset-bottom, 0px)); width: min(380px, calc(100vw - 24px)); padding: 12px 14px 14px; max-height: 45vh; overflow-y: auto; }
+  #info h2, #about h2 { margin: 2px 0 6px; font: 600 20px/1.2 var(--display); letter-spacing: 0.06em; color: var(--ink); padding-right: 24px; text-wrap: balance; }
+  #info .era { font-size: 12px; letter-spacing: 0.08em; color: var(--gold); }
+  #info p { margin: 0; font-size: 14px; line-height: 1.7; color: var(--ink); }
+  #about { position: fixed; z-index: 4; top: calc(70px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 160px); overflow-y: auto; padding: 16px 18px; }
+  #about p { margin: 0 0 10px; line-height: 1.7; }
+  #about ol { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px; }
+  #about li { display: contents; }
+  #about li b { color: var(--gold); font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #about li span { color: var(--ink); }
+  #about .note { font-size: 12px; color: var(--ink-dim); }
   #stick { left: 0; top: 0; width: 100px; height: 100px; border-radius: 50%; border: 1px solid var(--line); background: rgba(28,24,19,0.35); pointer-events: none; display: grid; place-items: center; }
   #knob { width: 40px; height: 40px; border-radius: 50%; background: rgba(217,163,91,0.65); }
   #updown { right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(80px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; }
   #updown button { width: 52px; height: 52px; font-size: 18px; background: var(--plate); touch-action: none; }
-  @media (max-width: 560px) { #title small { display: none; } #coords { display: none; } }
+  @media (max-width: 560px) { #title small { display: none; } #coords { display: none; } #about { top: calc(128px + env(safe-area-inset-top, 0px)); max-height: calc(100vh - 210px); } #spots::before { white-space: nowrap; } }
   @media (prefers-reduced-motion: reduce) { #load-bar::after { transition: none; } }
 </style>
 <script type="importmap">
@@ -89,6 +101,7 @@
       <button type="button" id="sound" aria-pressed="false">聲音：關</button>
       <button type="button" id="music" aria-pressed="true" hidden>音樂：開</button>
       <button type="button" id="quality">畫質</button>
+      <button type="button" id="about-toggle">關於聖母院</button>
       <button type="button" id="help-toggle" aria-label="操作說明">?</button>
     </div>
   </div>
@@ -112,6 +125,19 @@
     <p>按「聲音」開啟鐘聲、慢板巴薩諾瓦配樂與廣場環境音（全部即時合成）。清脆的鐘聲從兩座鐘樓傳來，靠近或轉頭會聽到方向與遠近的變化，約每 75 秒響一輪。</p>
     <p>全程是自由飛行：可以穿越建築，飛上國王廊、玫瑰窗、沉思者近看。按右上「?」可隨時再打開這份說明。</p>
   </div>
+  <article id="info" class="plate" hidden aria-live="polite">
+    <button type="button" class="close" id="info-close" aria-label="關閉介紹">×</button>
+    <div class="era" id="info-era"></div>
+    <h2 id="info-title"></h2>
+    <p id="info-text"></p>
+  </article>
+  <section id="about" class="plate" hidden>
+    <button type="button" class="close" id="about-close" aria-label="關閉">×</button>
+    <h2>巴黎聖母院</h2>
+    <p id="about-intro"></p>
+    <ol id="about-timeline"></ol>
+    <p class="note" id="about-note"></p>
+  </section>
   <div id="spots-wrap"><div id="spots" class="plate"></div></div>
   <div id="coords"></div>
   <div id="hint" class="plate"></div>
