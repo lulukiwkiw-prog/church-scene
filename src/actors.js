@@ -6,7 +6,7 @@
 // 位置、路線、停留點全部來自 layout.actors。
 // -----------------------------------------------------------------------------
 import * as THREE from 'three';
-import { sdfHeadParts, sdfHandHanging } from './sculpture/sdfhuman.js';
+import { sdfHeadParts, sdfHandHanging, FACE } from './sculpture/sdfhuman.js';
 
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -70,9 +70,10 @@ function sdfGeo(m, rgb, k, face = null) {
       const x = Math.abs(m.pos[3 * i]), y = m.pos[3 * i + 1], z = m.pos[3 * i + 2];
       if (z > 0.04) {
         const bell = (v, a, b) => Math.max(0, 1 - Math.abs(v - (a + b) / 2) / ((b - a) / 2));
-        mixIn(c, eyeC, 0.85 * bell(x, 0.0095, 0.0275) * bell(y, -0.0025, 0.0085));
-        mixIn(c, browC, 0.8 * bell(x, 0.006, 0.034) * bell(y, 0.0125, 0.0225));
-        mixIn(c, lipC, 0.7 * bell(x, -0.001, 0.0145) * bell(y, -0.0385, -0.0245));
+        const F = face.F, ey = F.brow - 0.0145;
+        mixIn(c, eyeC, 0.85 * bell(x, 0.0095, 0.0275) * bell(y, ey - 0.006, ey + 0.005));
+        mixIn(c, browC, 0.8 * bell(x, 0.006, 0.034) * bell(y, F.brow - 0.0045, F.brow + 0.0055));
+        mixIn(c, lipC, 0.7 * bell(x, -0.001, 0.0145) * bell(y, F.mouth - 0.0093, F.mouth + 0.0103));
       }
     }
     col[3 * i] = c[0] * ao; col[3 * i + 1] = c[1] * ao; col[3 * i + 2] = c[2] * ao;
@@ -213,7 +214,7 @@ function buildPerson(def, M, rng) {
     const style = def.hairStyle || (elder ? 'short' : def.sex === 'f' ? 'long' : 'short');
     const parts = sdfHeadParts({ female: def.sex === 'f', hair: style, beard: !!def.beard, veil: o.hat === 'scarf', seed: rng.int(0, 2) }, 0.0085);
     const k = (child ? 1.05 : 1.0) * h;
-    part3(head, sdfGeo(parts.skin, skinTone, k, { brow: hairCol }), M.skin, [0, headR, 0.004 * h]);
+    part3(head, sdfGeo(parts.skin, skinTone, k, { brow: hairCol, F: def.sex === 'f' ? FACE.f : FACE.m }), M.skin, [0, headR, 0.004 * h]);
     if (parts.hair) part3(head, sdfGeo(parts.hair, hairCol, k), M.cloth, [0, headR, 0.004 * h]);
   }
   if (o.hat === 'scarf') {
