@@ -15,29 +15,33 @@ const hyp = (a, b, c = 0) => sqrt(a * a + b * b + c * c);
 //   女：三庭約 1：1：0.8，下巴小而尖、比垂直線後約 3 mm，鼻人中角約 106°（鼻尖微翹），眼睛略大、兩頰較飽滿。
 // 單位：身高 = 1（約 1.7 m，所以 0.0018 ≈ 3 mm）。五眼：眼長 ≈ 兩眼間距 ≈ 0.0185，臉寬 ≈ 5 眼。
 export const FACE = {
-  m: { hairline: 0.058, brow: 0.02, noseBase: -0.018, mouth: -0.031, chin: -0.058, chinR: 0.0145, chinW: 1.2, chinZ: 0.061, eyeR: 0.0092, tipUp: 0.002, noseK: 1.0, jaw: 1, eyeDy: 0.0145, eyeX: 0.0185, wingX: 0.0092, wingR: 0.0058, lipW: 0.0125 },
+  m: { hairline: 0.058, brow: 0.02, noseBase: -0.018, mouth: -0.031, chin: -0.058, chinR: 0.0145, chinW: 1.2, chinZ: 0.061, eyeR: 0.0092, tipUp: 0.002, noseK: 1.0, jaw: 1,
+    // 男性黃金比例（k = 中庭的一半 ≈ 0.019）：三庭 2k：2k：2.1k、眉→眼 0.6k、鼻底→嘴：嘴→下巴 ≈ 1：2；
+    // 鼻寬 ≈ 眼長、嘴寬 1.618 × 鼻寬；下顎方正（嘴下方仍有顴骨寬的約 0.85）、下巴寬。
+    eyeDy: 0.0114, eyeX: 0.0185, wingX: 0.0062, wingR: 0.0045, lipW: 0.0172, headW: 1,
+    warp: [[-0.004, 1], [-0.018, 0.97], [-0.031, 0.92], [-0.04, 0.88], [-0.053, 0.76], [-0.06, 0.82], [-0.068, 1]] },
   // 女性依「黃金比例臉」參考圖（k = 中庭的一半）：髮際線→眉 1.8k、眉→眼 0.6k、眼→鼻底 1.4k、鼻底→嘴 0.6k、嘴→下巴 1.0k；
   // 鼻寬 1、嘴寬 1.618 × 鼻寬；臉寬：鼻底處 ≈ 3.5k、嘴下方 ≈ 2.8k（0.8 × 臉寬）、近下巴 ≈ 1.45k（V 形）。
   f: { hairline: 0.0524, brow: 0.02, noseBase: -0.016, mouth: -0.0268, chin: -0.0355, chinR: 0.0105, chinW: 0.95, chinZ: 0.0575, eyeR: 0.0088, tipUp: 0.0048, noseK: 0.86, jaw: 0,
-    eyeDy: 0.0108, eyeX: 0.0165, wingX: 0.0052, wingR: 0.0042, lipW: 0.0138 },
+    eyeDy: 0.0108, eyeX: 0.0165, wingX: 0.0052, wingR: 0.0042, lipW: 0.0138, headW: 0.8,
+    warp: [[0.004, 0.8], [-0.016, 0.67], [-0.0268, 0.6], [-0.0326, 0.56], [-0.0398, 0.5], [-0.0455, 0.52], [-0.056, 0.8]] },
 };
 
-// 女性頭型的橫向縮放（依參考圖的臉部外輪廓）：整顆頭較窄（0.8），顴骨以下往下巴收成瓜子臉，下巴以下回到 0.8。
-// 只套用在「底形」（顱骨、下半臉、臉頰、耳朵、頭皮）；眼、鼻、嘴、下巴尖用原座標，位置與大小不受影響。
-const FEM_W = [[0.004, 0.8], [-0.016, 0.67], [-0.0268, 0.6], [-0.0326, 0.56], [-0.0398, 0.5], [-0.0455, 0.52], [-0.056, 0.8]];
-function femWarp(y) {
-  if (y >= FEM_W[0][0]) return FEM_W[0][1];
-  for (let i = 0; i < FEM_W.length - 1; i++) {
-    const [y0, s0] = FEM_W[i], [y1, s1] = FEM_W[i + 1];
+// 頭型的橫向縮放（依黃金比例的臉部外輪廓）：F.warp 是 [y, 寬度倍率]，顴骨以下逐段收窄，下巴以下回到 headW。
+// 只套用在「底形」（顱骨、下半臉、臉頰、下顎角、耳朵、頭皮）；眼、鼻、嘴、下巴尖用原座標，位置與大小不受影響。
+function headWarp(W, y) {
+  if (y >= W[0][0]) return W[0][1];
+  for (let i = 0; i < W.length - 1; i++) {
+    const [y0, s0] = W[i], [y1, s1] = W[i + 1];
     if (y >= y1) { const t = (y0 - y) / (y0 - y1); return s0 + (s1 - s0) * t * t * (3 - 2 * t); }
   }
-  return FEM_W[FEM_W.length - 1][1];
+  return W[W.length - 1][1];
 }
 
 function headField(x, y, z, P) {
   const ax = abs(x), f = P.fem ? 0.9 : 1, F = P.fem ? FACE.f : FACE.m;
-  const sw = P.fem ? femWarp(y) : 1, bx = x / sw, bax = abs(bx);              // 底形座標
-  const hs = P.fem ? 0.8 : 1, hx = x / hs, hax = abs(hx);                       // 頭髮座標
+  const sw = headWarp(F.warp, y), bx = x / sw, bax = abs(bx);              // 底形座標
+  const hs = F.headW, hx = x / hs, hax = abs(hx);                       // 頭髮座標
   const lowMid = (F.noseBase + F.chin) / 2, lowH = (F.noseBase - F.chin) / 2;
   // 顱骨 + 下半臉（下庭的長度由下巴底決定）
   let d = ell(bx, y, z, 0, 0, 0, 0.05, 0.068, 0.057);
@@ -45,7 +49,7 @@ function headField(x, y, z, P) {
   // 下巴：男寬而方、在唇前垂直線上；女小而尖、稍微後縮
   d = smin(d, ell(ax, y, z, 0, F.chin + F.chinR, F.chinZ - F.chinR, F.chinR * F.chinW, F.chinR, F.chinR), 0.012);
   // 下顎角：男性明顯（稜角），女性省略（線條柔和）
-  if (F.jaw) d = smin(d, ell(ax, y, z, 0.037, F.chin + 0.02, 0.006, 0.011, 0.012, 0.016), 0.012);
+  if (F.jaw) d = smin(d, ell(bax, y, z, 0.037, F.chin + 0.02, 0.006, 0.011, 0.012, 0.016), 0.012);
   // 顴骨與臉頰：女性較低、較飽滿
   // 女性用較小、較深的臉頰球配大的融合半徑：圓潤但不鼓出來
   d = P.fem ? smin(d, ball(bax, y, z, 0.029, -0.012, 0.035, 0.015), 0.016) : smin(d, ball(ax, y, z, 0.033, -0.009, 0.04, 0.0158), 0.014);
