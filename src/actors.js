@@ -70,10 +70,10 @@ function sdfGeo(m, rgb, k, face = null) {
       const x = Math.abs(m.pos[3 * i]), y = m.pos[3 * i + 1], z = m.pos[3 * i + 2];
       if (z > 0.04) {
         const bell = (v, a, b) => Math.max(0, 1 - Math.abs(v - (a + b) / 2) / ((b - a) / 2));
-        const F = face.F, ey = F.brow - 0.0145;
-        mixIn(c, eyeC, 0.85 * bell(x, 0.0095, 0.0275) * bell(y, ey - 0.006, ey + 0.005));
+        const F = face.F, ey = F.brow - F.eyeDy;
+        mixIn(c, eyeC, 0.85 * bell(x, F.eyeX - 0.009, F.eyeX + 0.009) * bell(y, ey - 0.006, ey + 0.005));
         mixIn(c, browC, 0.8 * bell(x, 0.006, 0.034) * bell(y, F.brow - 0.0045, F.brow + 0.0055));
-        mixIn(c, lipC, 0.7 * bell(x, -0.001, 0.0145) * bell(y, F.mouth - 0.0093, F.mouth + 0.0103));
+        mixIn(c, lipC, 0.7 * bell(x, -0.001, F.lipW + 0.002) * bell(y, F.mouth - 0.0093, F.mouth + 0.0103));
       }
     }
     col[3 * i] = c[0] * ao; col[3 * i + 1] = c[1] * ao; col[3 * i + 2] = c[2] * ao;
@@ -753,8 +753,8 @@ export function build({ layout, materials, variant, rng }) {
     {
       const h = es.h;
       part(es.torso, new THREE.TorusGeometry(0.09 * h, 0.02 * h, 8, 28), M.cloth, ST.esmeralda.outfit.sash, [0, 0.045 * h, 0], [Math.PI / 2, 0, 0], [1.2, 0.85, 1]);
-      part(es.head, new THREE.TorusGeometry(es.h * 0.066, 0.008 * h, 5, 16), M.cloth, ST.esmeralda.outfit.headband, [0, 0.085 * h, 0], [Math.PI / 2 - 0.2, 0, 0]);
-      for (const s of [-1, 1]) part(es.head, sphere(0.012 * h, 6, 4), M.cloth, ST.esmeralda.outfit.sash, [s * 0.062 * h, 0.05 * h, 0]); // 耳環
+      part(es.head, new THREE.TorusGeometry(es.h * 0.052, 0.007 * h, 6, 24), M.cloth, ST.esmeralda.outfit.headband, [0, 0.085 * h, 0], [Math.PI / 2 - 0.2, 0, 0], [0.88, 1.12, 1]);
+      for (const s of [-1, 1]) part(es.head, sphere(0.012 * h, 6, 4), M.cloth, ST.esmeralda.outfit.sash, [s * 0.043 * h, 0.046 * h, -0.002 * h]); // 耳環
       const tamb = part(es.arms[1].hand, cyl(0.12, 0.12, 0.045, 16), M.cloth, [0.78, 0.62, 0.40], [0, -0.06, 0.04], [0, 0, Math.PI / 2]);
       tamb.name = 'tambourine';
     }

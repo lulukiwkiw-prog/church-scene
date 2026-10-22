@@ -15,71 +15,77 @@ const hyp = (a, b, c = 0) => sqrt(a * a + b * b + c * c);
 //   女：三庭約 1：1：0.8，下巴小而尖、比垂直線後約 3 mm，鼻人中角約 106°（鼻尖微翹），眼睛略大、兩頰較飽滿。
 // 單位：身高 = 1（約 1.7 m，所以 0.0018 ≈ 3 mm）。五眼：眼長 ≈ 兩眼間距 ≈ 0.0185，臉寬 ≈ 5 眼。
 export const FACE = {
-  m: { hairline: 0.058, brow: 0.02, noseBase: -0.018, mouth: -0.031, chin: -0.058, chinR: 0.0145, chinW: 1.2, chinZ: 0.061, eyeR: 0.0092, tipUp: 0.002, noseK: 1.0, jaw: 1 },
-  f: { hairline: 0.056, brow: 0.02, noseBase: -0.016, mouth: -0.025, chin: -0.0355, chinR: 0.0105, chinW: 0.95, chinZ: 0.0575, eyeR: 0.0101, tipUp: 0.0048, noseK: 0.86, jaw: 0 },
+  m: { hairline: 0.058, brow: 0.02, noseBase: -0.018, mouth: -0.031, chin: -0.058, chinR: 0.0145, chinW: 1.2, chinZ: 0.061, eyeR: 0.0092, tipUp: 0.002, noseK: 1.0, jaw: 1, eyeDy: 0.0145, eyeX: 0.0185, wingX: 0.0092, wingR: 0.0058, lipW: 0.0125 },
+  // 女性依「黃金比例臉」參考圖（k = 中庭的一半）：髮際線→眉 1.8k、眉→眼 0.6k、眼→鼻底 1.4k、鼻底→嘴 0.6k、嘴→下巴 1.0k；
+  // 鼻寬 1、嘴寬 1.618 × 鼻寬；臉寬：鼻底處 ≈ 3.5k、嘴下方 ≈ 2.8k（0.8 × 臉寬）、近下巴 ≈ 1.45k（V 形）。
+  f: { hairline: 0.0524, brow: 0.02, noseBase: -0.016, mouth: -0.0268, chin: -0.0355, chinR: 0.0105, chinW: 0.95, chinZ: 0.0575, eyeR: 0.0088, tipUp: 0.0048, noseK: 0.86, jaw: 0,
+    eyeDy: 0.0108, eyeX: 0.0165, wingX: 0.0052, wingR: 0.0042, lipW: 0.0138 },
 };
+
+// 女性頭型的橫向縮放（依參考圖的臉部外輪廓）：整顆頭較窄（0.8），顴骨以下往下巴收成瓜子臉，下巴以下回到 0.8。
+// 只套用在「底形」（顱骨、下半臉、臉頰、耳朵、頭皮）；眼、鼻、嘴、下巴尖用原座標，位置與大小不受影響。
+const FEM_W = [[0.004, 0.8], [-0.016, 0.67], [-0.0268, 0.6], [-0.0326, 0.56], [-0.0398, 0.5], [-0.0455, 0.52], [-0.056, 0.8]];
+function femWarp(y) {
+  if (y >= FEM_W[0][0]) return FEM_W[0][1];
+  for (let i = 0; i < FEM_W.length - 1; i++) {
+    const [y0, s0] = FEM_W[i], [y1, s1] = FEM_W[i + 1];
+    if (y >= y1) { const t = (y0 - y) / (y0 - y1); return s0 + (s1 - s0) * t * t * (3 - 2 * t); }
+  }
+  return FEM_W[FEM_W.length - 1][1];
+}
 
 function headField(x, y, z, P) {
   const ax = abs(x), f = P.fem ? 0.9 : 1, F = P.fem ? FACE.f : FACE.m;
+  const sw = P.fem ? femWarp(y) : 1, bx = x / sw, bax = abs(bx);              // 底形座標
+  const hs = P.fem ? 0.8 : 1, hx = x / hs, hax = abs(hx);                       // 頭髮座標
   const lowMid = (F.noseBase + F.chin) / 2, lowH = (F.noseBase - F.chin) / 2;
   // 顱骨 + 下半臉（下庭的長度由下巴底決定）
-  let d = ell(x, y, z, 0, 0, 0, 0.05, 0.068, 0.057);
-  d = smin(d, ell(ax, y, z, 0, lowMid + 0.005, 0.014, P.fem ? 0.0405 : 0.0435, lowH + 0.005, 0.042), P.fem ? 0.026 : 0.016);    // 下半臉（女性較窄，臉呈鵝蛋形）
+  let d = ell(bx, y, z, 0, 0, 0, 0.05, 0.068, 0.057);
+  d = smin(d, ell(bax, y, z, 0, lowMid + 0.005, 0.014, P.fem ? 0.0405 : 0.0435, lowH + 0.005, 0.042), P.fem ? 0.026 : 0.016);    // 下半臉（女性較窄，臉呈鵝蛋形）
   // 下巴：男寬而方、在唇前垂直線上；女小而尖、稍微後縮
   d = smin(d, ell(ax, y, z, 0, F.chin + F.chinR, F.chinZ - F.chinR, F.chinR * F.chinW, F.chinR, F.chinR), 0.012);
   // 下顎角：男性明顯（稜角），女性省略（線條柔和）
   if (F.jaw) d = smin(d, ell(ax, y, z, 0.037, F.chin + 0.02, 0.006, 0.011, 0.012, 0.016), 0.012);
   // 顴骨與臉頰：女性較低、較飽滿
   // 女性用較小、較深的臉頰球配大的融合半徑：圓潤但不鼓出來
-  d = P.fem ? smin(d, ball(ax, y, z, 0.029, -0.012, 0.035, 0.015), 0.016) : smin(d, ball(ax, y, z, 0.033, -0.009, 0.04, 0.0158), 0.014);
-  // 女性瓜子臉：顴骨以下往下巴收窄（只削臉的前半部，耳朵、後腦、脖子不動）
-  let jaw = -1e9;
-  if (P.fem) {
-    const u = clamp((-0.004 - y) / (-0.004 - F.chin), 0, 1);
-    const w = 0.046 - 0.032 * u ** 2.2
-      + 0.08 * sstep(-0.008, 0.0, y)                             // 顴骨以上不削
-      + 0.08 * sstep(-F.chin + 0.003, -F.chin + 0.012, -y)      // 下巴以下（脖子）不削
-      + 0.06 * (1 - sstep(-0.015, 0.015, z));                    // 臉的前半部才削
-    jaw = ax - w;
-    d = smax(d, jaw, 0.01);
-  }
+  d = P.fem ? smin(d, ball(bax, y, z, 0.029, -0.012, 0.035, 0.015), 0.016) : smin(d, ball(ax, y, z, 0.033, -0.009, 0.04, 0.0158), 0.014);
   const browK = (P.fem ? 0.8 : 1.18) * (0.9 + 0.2 * P.seed);
-  d = smin(d, cone(ax, y, z, 0, F.brow, 0.0455, 0.039, F.brow - 0.0015, 0.04, 0.0105 * browK, 0.0095 * browK), 0.012); // 眉骨（男性較突出）
+  d = smin(d, cone(ax, y, z, 0, F.brow, 0.0455, P.fem ? 0.033 : 0.039, F.brow - 0.0015, P.fem ? 0.037 : 0.04, 0.0105 * browK, 0.0095 * browK), 0.012); // 眉骨（男性較突出）
   // 眼：先挖眼窩，再放回略凹的眼球與上眼瞼（女性眼睛略大）
-  const ey = F.brow - 0.0145;
-  d = smax(d, -ball(ax, y, z, 0.0185, ey, 0.0525, F.eyeR + 0.0012), 0.006);
-  d = smin(d, ball(ax, y, z, 0.0185, ey, 0.0478, F.eyeR), 0.004);
-  d = smin(d, ell(ax, y, z, 0.0185, ey + 0.008, 0.05, F.eyeR + 0.0013, 0.0042, 0.0075), 0.004);
+  const ey = F.brow - F.eyeDy, ex = F.eyeX;
+  d = smax(d, -ball(ax, y, z, ex, ey, 0.0525, F.eyeR + 0.0012), 0.006);
+  d = smin(d, ball(ax, y, z, ex, ey, 0.0478, F.eyeR), 0.004);
+  d = smin(d, ell(ax, y, z, ex, ey + 0.008, 0.05, F.eyeR + 0.0013, 0.0042, 0.0075), 0.004);
   // 鼻：鼻樑、鼻頭、鼻翼、鼻孔。男鼻樑較高（約 36°），女較小且鼻尖上翹（鼻人中角較大）
   const nl = (0.0145 + 0.003 * (P.seed - 0.5)) * F.noseK, nb = F.noseBase;
   d = smin(d, cone(ax, y, z, 0, F.brow - 0.006, 0.051, 0, nb + 0.006 + F.tipUp * 0.5, 0.054 + nl, 0.0092 * F.noseK, 0.0078 * F.noseK), 0.008);
   d = smin(d, ball(ax, y, z, 0, nb + 0.0035 + F.tipUp, 0.0545 + nl, 0.0082 * F.noseK), 0.005);
-  d = smin(d, ball(ax, y, z, 0.0092 * F.noseK, nb + 0.0015, 0.0475 + nl * 0.9, 0.0058 * F.noseK), 0.005);
+  d = smin(d, ball(ax, y, z, F.wingX, nb + 0.0015, 0.0475 + nl * 0.9, F.wingR), 0.005);
   d = smax(d, -ball(ax, y, z, 0.0052 * F.noseK, nb - 0.0005 + F.tipUp * 0.3, 0.0555 + nl * 0.95, 0.0034 * F.noseK), 0.003);
   // 嘴：上唇、下唇、嘴縫（位於下庭上方約三分之一）
   const my = F.mouth;
-  d = smin(d, ell(ax, y, z, 0, my + 0.0052, 0.0552, 0.0125 * f, 0.0048, 0.0058), 0.005);
-  d = smin(d, ell(ax, y, z, 0, my - 0.0046, 0.0545, 0.0112 * f, 0.0052, 0.0058), 0.005);
-  d = smax(d, -ell(ax, y, z, 0, my, 0.0586, 0.0135 * f, 0.0011, 0.0045), 0.0011);
+  d = smin(d, ell(ax, y, z, 0, my + 0.0052, 0.0552, F.lipW, 0.0048, 0.0058), 0.005);
+  d = smin(d, ell(ax, y, z, 0, my - 0.0046, 0.0545, F.lipW * 0.9, 0.0052, 0.0058), 0.005);
+  d = smax(d, -ell(ax, y, z, 0, my, 0.0586, F.lipW * 1.08, 0.0011, 0.0045), 0.0011);
   // 耳
-  d = smin(d, ell(ax, y, z, 0.0505, 0.001, -0.004, 0.0072, 0.019, 0.0115), 0.006);
+  d = smin(d, ell(bax, y, z, 0.0505, 0.001, -0.004, 0.0072 * sw, 0.019, 0.0115), 0.006);
   // 脖子（伸進長袍）
-  d = smin(d, cone(x, y, z, 0, -0.035, -0.002, 0, -0.088, -0.006, 0.0265, 0.03), 0.012);
+  d = smin(d, cone(x, y, z, 0, -0.035, -0.002, 0, -0.088, -0.006, 0.0265 * (P.fem ? 0.86 : 1), 0.03 * (P.fem ? 0.86 : 1)), 0.012);
   // 頭髮（P.only === 'skin' → 只要皮膚，頭髮當光頭；'hair' → 另外回傳頭髮＋鬍子的場）
   let hr = 1e9;
   if (P.only !== 'skin' && P.hair !== 'bald' && !P.covered) {
-    let h = ell(x, y, z, 0, 0.006, -0.005, 0.0538, 0.0705, 0.0615);
-    if (P.hair === 'long') h = smin(h, ell(x, y, z, 0, -0.065, -0.04, 0.052, 0.085, 0.026), 0.015);
-    if (P.fem) h = smin(h, ell(x, y, z, 0, -0.07, -0.036, 0.056, 0.09, 0.03), 0.015);
-    h = smax(h, -ell(x, y, z, 0, F.hairline - 0.066, 0.052, 0.046, 0.066, 0.036), 0.007); // 留出臉（上庭到髮際線）
-    h = smax(h, -ell(ax, y, z, 0.056, -0.004, 0.012, 0.012, 0.03, 0.03), 0.004);       // 露出耳朵
-    if (P.hair === 'tonsure') h = smax(h, -ball(x, y, z, 0, 0.074, 0, 0.037), 0.005);
+    let h = ell(hx, y, z, 0, 0.006, -0.005, 0.0538, 0.0705, 0.0615);
+    if (P.hair === 'long') h = smin(h, ell(hx, y, z, 0, -0.065, -0.04, 0.052, 0.085, 0.026), 0.015);
+    if (P.fem) h = smin(h, ell(hx, y, z, 0, -0.07, -0.036, 0.056, 0.09, 0.03), 0.015);
+    h = smax(h, -ell(hx, y, z, 0, F.hairline - 0.066, 0.052, 0.046, 0.066, 0.036), 0.007); // 留出臉（上庭到髮際線）
+    h = smax(h, -ell(hax, y, z, 0.056, -0.004, P.fem ? 0.006 : 0.012, 0.012, P.fem ? 0.022 : 0.03, P.fem ? 0.015 : 0.03), 0.004); // 露出耳朵
+    if (P.hair === 'tonsure') h = smax(h, -ball(hx, y, z, 0, 0.074, 0, 0.037), 0.005);
     if (P.hair === 'curly') h -= 0.0024 * max(0, sin(x * 190 + 2 * sin(y * 120)) * sin(y * 170 + z * 130));
     else h -= 0.0014 * max(0, sin(Math.atan2(z + 0.005, x) * 46 + y * 18));
     d = smin(d, h, 0.007);
     hr = h;
   } else if (P.only === 'skin' || P.hair === 'bald' || P.covered) {
-    d = smin(d, ell(x, y, z, 0, 0.004, -0.004, 0.0515, 0.069, 0.0585), 0.005);
+    d = smin(d, ell(bx, y, z, 0, 0.004, -0.004, 0.0515, 0.069, 0.0585), 0.005);
   }
   // 鬍子
   if (P.beard && P.only !== 'skin') {
@@ -91,7 +97,6 @@ function headField(x, y, z, P) {
     hr = smin(hr, b, 0.008);
     d = smax(d, -ell(ax, y, z, 0, my, 0.0606, 0.01, 0.0011, 0.006), 0.0011);                 // 嘴縫仍看得到
   }
-  if (P.fem) hr = smax(hr, jaw, 0.01);   // 頭髮也跟著削，否則削掉的臉頰會露出頭髮內側
   if (P.only === 'hair') return hr + 0.0003 * (noise3(x * 220, y * 220, z * 220) - 0.5);
   // 風化細紋
   return d + 0.0003 * (noise3(x * 220, y * 220, z * 220) - 0.5);
