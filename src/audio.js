@@ -5,7 +5,7 @@
 //   走遠會變小、轉頭會換邊。
 // - 配樂：原創的慢板巴薩諾瓦（D 大調，每分鐘 92 拍）：尼龍弦吉他
 //   （Karplus-Strong 撥弦合成）彈切分和弦、低音提琴、輕刷鼓與邊擊，旋律是無歌詞的
-//   輕柔哼唱聲（共振峰合成的「嗚」母音）。鐘聲與音樂輪流，不重疊。
+//   輕柔哼唱聲（共振峰合成的「嗚」母音）。鐘聲在音樂第 5 小節輕輕疊入當背景。
 // - 環境音：遠處城市的輕微底噪、鴿群的咕咕聲（放在鴿群位置）。
 // 瀏覽器規定聲音只能在使用者點擊後開始：start() 必須在 click 事件裡呼叫。
 // -----------------------------------------------------------------------------
@@ -44,6 +44,7 @@ const SCORE = [
   ['A7', [[3, 0.5, 'A4'], [3.5, 0.5, 'B4']]],
 ].map(([c, mel]) => ({ chord: CH[c].map(n), bass: BASS[c].map(n), mel: mel.map(([at, d, p]) => [at, d, n(p)]) }));
 const BPM = 92, BEAT = 60 / BPM, BAR = 4 * BEAT, SIX = BEAT / 4;
+const PEAL_BAR = 4; // 鐘聲在第 5 小節加入（約第 10.4 秒）
 // 巴薩諾瓦吉他節奏（以十六分音符為格，兩小節一組）：和弦撥奏與拇指低音
 const GUITAR_HITS = [[0, 3, 6, 10, 13], [2, 6, 10, 12]];
 const THUMB = [0, 6, 8, 14];
@@ -61,7 +62,7 @@ export function createAudio({ layout }) {
   const flock = layout.actors.pigeons[0].center;
 
   let ctx = null, master, musicBus, bellBus, ambBus, timer = null;
-  let musicOn = true, bar = 0, nextBarTime = 0, pass = 0, pealDue = true, nextCoo = 0;
+  let musicOn = true, bar = 0, nextBarTime = 0, pass = 0, nextCoo = 0;
   let seed = 12345;
   const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; // 只用於演奏的細微人性化
 
@@ -109,14 +110,14 @@ export function createAudio({ layout }) {
     let t = start;
     for (let round = 0; round < 4; round++) {
       PEAL.forEach((f, i) => {
-        bell(f, t + (rand() - 0.5) * 0.03, 0.16, i % 2 ? sp : np); // 兩座塔交替，聽起來左右呼應
-        t += 0.34;
+        bell(f, t + (rand() - 0.5) * 0.02, 0.065, i % 2 ? sp : np); // 兩座塔交替，聽起來左右呼應
+        t += BEAT / 2; // 對齊配樂的八分音符
       });
-      t += 0.34; // 每輪之間的空拍
+      t += BEAT / 2; // 每輪之間的空拍
     }
-    t += 0.6;
-    for (let k = 0; k < 3; k++) { bell(TOLL, t, 0.28, sp); t += 1.9; }
-    return t + 1.9;
+    t += BEAT;
+    for (let k = 0; k < 3; k++) { bell(TOLL, t, 0.11, sp); t += 3 * BEAT; }
+    return t;
   }
 
   // ---------------- 尼龍弦吉他（Karplus-Strong，預先算好每個音）----------------
@@ -267,19 +268,14 @@ export function createAudio({ layout }) {
   // ---------------- 排程 ----------------
   function tick() {
     const now = ctx.currentTime, ahead = now + 0.3;
-    // 鐘聲與音樂輪流：先響鐘，鐘聲完全結束後音樂從頭開始；
-    // 每演奏完兩遍（約 84 秒）在樂句結尾停下，再響一輪鐘，然後音樂重新開始。
+    // 音樂一開始就播；每兩遍的第 5 小節（約第 10 秒）鐘聲輕輕疊進來當背景，
+    // 鐘的節奏對齊配樂的八分音符、音也在同一個 D 大調裡，不會打亂旋律。
     while (nextBarTime < ahead) {
-      if (pealDue) {
-        const end = peal(nextBarTime);
-        nextBarTime = end + 2.2; // 讓最後一下鐘聲餘韻散去
-        bar = 0; pass = 0; pealDue = false;
-        continue;
-      }
+      if (bar === PEAL_BAR && pass % 2 === 0) peal(nextBarTime);
       if (musicOn) scheduleBar(bar, nextBarTime);
       nextBarTime += BAR;
       bar = (bar + 1) % SCORE.length;
-      if (bar === 0 && ++pass >= 2) pealDue = true;
+      if (bar === 0) pass++;
     }
     if (now + 0.3 > nextCoo) { coo(Math.max(now + 0.1, nextCoo)); nextCoo = nextCoo + 5 + rand() * 7; }
   }
@@ -308,7 +304,6 @@ export function createAudio({ layout }) {
         ambBus = ctx.createGain(); ambBus.gain.value = 0.5; ambBus.connect(master);
         startAmbience();
         nextBarTime = ctx.currentTime + 0.2;
-        pealDue = true; // 一開聲音就先響一輪鐘，之後音樂才開始
         nextCoo = ctx.currentTime + 3;
       }
       ctx.resume();
