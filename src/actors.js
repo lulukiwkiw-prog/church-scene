@@ -41,7 +41,7 @@ function part(parent, geo, mat, rgb, pos = [0, 0, 0], rot = null, scale = null) 
   return m;
 }
 /** 從樞紐往下（-y）長 len 的膠囊肢段 */
-function limb(r, len, seg = 8, rEnd = r) {
+function limb(r, len, seg = 8, rEnd = r, ripple = 0) {
   if (rEnd === r && seg <= 8) {
     const g = new THREE.CapsuleGeometry(r, Math.max(0.001, len - 2 * r), 3, seg);
     g.translate(0, -len / 2, 0);
@@ -50,6 +50,10 @@ function limb(r, len, seg = 8, rEnd = r) {
   // 漸細的肢段（上粗下細）：旋轉體，兩端圓頭（輪廓由下往上）
   const prof = [];
   for (let i = 0; i <= 4; i++) { const a = (i / 4) * (Math.PI / 2); prof.push(new THREE.Vector2(rEnd * Math.sin(a), -len + rEnd - rEnd * Math.cos(a))); }
+  for (let j = 1; j < 9 && ripple; j++) { // 布料在肘／膝與袖口堆出的橫向皺褶
+    const u = j / 9, rr = rEnd + (r - rEnd) * u;
+    prof.push(new THREE.Vector2(rr * (1 + ripple * Math.sin(u * Math.PI * 4.2 + 0.7) * (0.35 + 0.65 * Math.abs(2 * u - 1))), -len + rEnd + (len - r - rEnd) * u));
+  }
   for (let i = 0; i <= 4; i++) { const a = (i / 4) * (Math.PI / 2); prof.push(new THREE.Vector2(r * Math.cos(a), -r + r * Math.sin(a))); }
   return new THREE.LatheGeometry(prof, seg);
 }
@@ -85,6 +89,22 @@ function part3(parent, geo, mat, pos = [0, 0, 0], scale = null) { // 已經帶�
   if (scale) m.scale.set(...scale);
   parent.add(m);
   return m;
+}
+/** 沿圓周的衣褶：y0（不動）往下到 y1 逐漸加深；hem > 0 時下擺高低起伏 */
+function foldGeo(g, { n, amp, y0, y1, ph = 0, hem = 0 }) {
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const t = smooth((y0 - y) / (y0 - y1));
+    if (t <= 0) continue;
+    const th = Math.atan2(z, x);
+    const w = 0.6 * Math.sin(n * th + ph) + 0.3 * Math.sin(2.7 * n * th + 2.1 * ph + 1) + 0.1 * Math.sin(5.3 * n * th);
+    const k = 1 + amp * t * w;
+    p.setX(i, x * k); p.setZ(i, z * k);
+    if (hem) p.setY(i, y - hem * t * t * (0.5 + 0.5 * Math.sin(n * th + ph + 0.7)));
+  }
+  g.computeVertexNormals();
+  return g;
 }
 const sphere = (r, w = 12, h = 8) => new THREE.SphereGeometry(r, w, h);
 const box = (x, y, z) => new THREE.BoxGeometry(x, y, z);
@@ -145,18 +165,25 @@ function buildPerson(def, M, rng) {
   const torso = piv(hips, 0, 0, 0);
   const coatLen = o.coatLen != null ? o.coatLen * h : def.kind === 'elder' || def.kind === 'local' ? 0.16 * h : 0.05 * h;
   const coatFlare = (o.coatFlare || 0.095) * h; // 長袍下擺半徑
-  // 外套：由肩到臀下方的旋轉體（略寬、下擺張開）
-  const coatProfile = [[0.001, torsoL + 0.02 * h], [0.06 * h, torsoL + 0.01 * h], [0.085 * h, torsoL - 0.05 * h], [0.082 * h, torsoL * 0.5],
-    [0.085 * h, 0.02 * h], [coatFlare, -coatLen]].map(([r, y]) => new THREE.Vector2(r, y));
-  part(torso, new THREE.LatheGeometry(coatProfile, 28), M.cloth, o.coat, [0, 0, 0], null, [1.18, 1, 0.78]);
+  // 外套：由肩（斜肩）、胸、腰到臀與下襬的旋轉體；女性腰細、有胸線；下半身有衣褶
+  const fem = def.sex === 'f' && !child, foldPh = rng.next() * TAU;
+  const shR = (fem ? 0.088 : 0.097) * h, chR = (fem ? 0.083 : 0.092) * h;
+  const waR = (fem ? 0.064 : elder ? 0.09 : child ? 0.078 : 0.082) * h, hipR = (fem ? 0.094 : 0.088) * h;
+  const coatProfile = [[0.001, torsoL + 0.03 * h], [0.045 * h, torsoL + 0.026 * h], [0.075 * h, torsoL + 0.008 * h], [shR, torsoL - 0.02 * h], [chR, torsoL - 0.07 * h],
+    [(chR + waR) / 2, torsoL * 0.68], [waR, torsoL * 0.45], [hipR, 0.0], [Math.max(hipR, coatFlare * 0.55) * 1.02, -0.03 * h], [Math.max(coatFlare, hipR), -coatLen]].map(([r, y]) => new THREE.Vector2(r, y));
+  const coatG = new THREE.LatheGeometry(coatProfile, 36);
+  foldGeo(coatG, { n: 11, amp: coatLen > 0.1 * h ? 0.07 : 0.03, y0: torsoL * 0.3, y1: -coatLen, ph: foldPh, hem: coatLen > 0.1 * h ? 0.03 * h : 0 });
+  part(torso, coatG, M.cloth, o.coat, [0, 0, 0], null, [1.18, 1, 0.78]);
   let skirt = null;
   if (o.skirt) {
     const sk = (o.skirtLen || (child ? 0.16 : 0.33)) * h, flare = (o.skirtFlare || 0.13) * h;
-    const g = new THREE.CylinderGeometry(0.085 * h, flare, sk, 18, 2, true);
+    const g = new THREE.CylinderGeometry(0.108 * h, flare, sk, 56, 14, true);
     g.translate(0, -sk / 2 + 0.02 * h, 0); // 樞紐在腰：張開時從腰往外擺
+    foldGeo(g, { n: 13, amp: 0.13, y0: 0.0, y1: -sk, ph: foldPh + 1.3, hem: 0.05 * sk });
     skirt = part(hips, g, M.cloth, o.skirt);
     skirt.material = M.clothDouble;
   }
+  if (!o.scarf && !o.hat?.includes?.('scarf')) part(torso, new THREE.TorusGeometry(0.04 * h, 0.011 * h, 6, 16), M.cloth, o.coat.map((v) => v * 0.82), [0, torsoL + 0.004 * h, 0], [Math.PI / 2, 0, 0]); // 領口
   if (o.scarf && o.hat !== 'scarf') part(torso, new THREE.TorusGeometry(0.045 * h, 0.018 * h, 6, 12), M.cloth, o.scarf, [0, torsoL - 0.005 * h, 0], [Math.PI / 2, 0, 0]);
   if (def.backpack) part(torso, box(0.17 * h, 0.2 * h, 0.08 * h), M.cloth, def.backpack, [0, torsoL * 0.62, -0.1 * h]);
   if (def.baguette) part(torso, new THREE.CapsuleGeometry(0.022, 0.62, 3, 8), M.cloth, [0.78, 0.55, 0.28], [-0.105 * h, torsoL * 0.55, 0.02], [0.35, 0, Math.PI / 2 - 0.3]);
@@ -186,10 +213,10 @@ function buildPerson(def, M, rng) {
   const arms = [];
   for (const s of [-1, 1]) {
     const sh = piv(torso, s * shoulder, torsoL - 0.025 * h, 0);
-    part(sh, limb(0.031 * h, upA, 14, 0.026 * h), M.cloth, o.coat);
+    part(sh, limb(0.031 * h, upA, 14, 0.026 * h, 0.07), M.cloth, o.coat);
     part(sh, sphere(0.032 * h, 12, 8), M.cloth, o.coat);   // 肩
     const el = piv(sh, 0, -upA + 0.01 * h, 0);
-    part(el, limb(0.026 * h, foA, 14, 0.019 * h), M.cloth, o.coat);
+    part(el, limb(0.026 * h, foA, 14, 0.019 * h, 0.07), M.cloth, o.coat);
     part(el, sphere(0.027 * h, 10, 8), M.cloth, o.coat);   // 手肘
     const hand = piv(el, 0, -foA, 0);
     part3(hand, sdfGeo(sdfHandHanging(0.006), skinTone, 0.92 * h), M.skin, [0, -0.004 * h, 0], [s, 1, 1]);
@@ -199,9 +226,9 @@ function buildPerson(def, M, rng) {
   const legs = [];
   for (const s of [-1, 1]) {
     const th = piv(hips, s * hipW, 0, 0);
-    part(th, limb(0.05 * h, thighL + 0.02 * h, 14, 0.04 * h), M.cloth, legCol);
+    part(th, limb(0.05 * h, thighL + 0.02 * h, 14, 0.04 * h, 0.04), M.cloth, legCol);
     const kn = piv(th, 0, -thighL, 0);
-    part(kn, limb(0.04 * h, shinL + 0.01 * h, 14, 0.027 * h), M.cloth, o.skirt && !child ? skinTone.map((v) => v * 0.9) : legCol);
+    part(kn, limb(0.04 * h, shinL + 0.01 * h, 14, 0.027 * h, o.skirt && !child ? 0 : 0.04), M.cloth, o.skirt && !child ? skinTone.map((v) => v * 0.9) : legCol);
     const ft = piv(kn, 0, -shinL, 0);
     part(ft, sphere(0.5, 14, 8), M.cloth, shoe, [0, -0.014 * h, 0.04 * h], null, [0.056 * h, 0.04 * h, 0.15 * h]);       // 鞋身
     part(ft, sphere(0.5, 10, 6), M.cloth, shoe, [0, -0.012 * h, -0.02 * h], null, [0.05 * h, 0.05 * h, 0.06 * h]);       // 鞋跟處
