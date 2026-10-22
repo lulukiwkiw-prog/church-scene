@@ -1,11 +1,12 @@
 // src/actors.js — 廣場上的活動物件：人物 12、鴿子 14、貓 2、狗 2
 // -----------------------------------------------------------------------------
-// 全部程式生成（膠囊、球、圓柱組成的關節骨架），顏色用頂點色。
+// 全部程式生成（關節骨架；頭與手是 SDF 雕刻、肢體是漸細旋轉體），顏色用頂點色。
 // 每個物件的姿勢與位置只由時間 t 決定：group.userData.update(t)。
 // 影片用影格時間呼叫（確定性），互動版用真實時間呼叫。
 // 位置、路線、停留點全部來自 layout.actors。
 // -----------------------------------------------------------------------------
 import * as THREE from 'three';
+import { sdfHeadParts, sdfHandHanging } from './sculpture/sdfhuman.js';
 
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -40,10 +41,50 @@ function part(parent, geo, mat, rgb, pos = [0, 0, 0], rot = null, scale = null) 
   return m;
 }
 /** 從樞紐往下（-y）長 len 的膠囊肢段 */
-function limb(r, len, seg = 8) {
-  const g = new THREE.CapsuleGeometry(r, Math.max(0.001, len - 2 * r), 3, seg);
-  g.translate(0, -len / 2, 0);
+function limb(r, len, seg = 8, rEnd = r) {
+  if (rEnd === r && seg <= 8) {
+    const g = new THREE.CapsuleGeometry(r, Math.max(0.001, len - 2 * r), 3, seg);
+    g.translate(0, -len / 2, 0);
+    return g;
+  }
+  // 漸細的肢段（上粗下細）：旋轉體，兩端圓頭（輪廓由下往上）
+  const prof = [];
+  for (let i = 0; i <= 4; i++) { const a = (i / 4) * (Math.PI / 2); prof.push(new THREE.Vector2(rEnd * Math.sin(a), -len + rEnd - rEnd * Math.cos(a))); }
+  for (let i = 0; i <= 4; i++) { const a = (i / 4) * (Math.PI / 2); prof.push(new THREE.Vector2(r * Math.cos(a), -r + r * Math.sin(a))); }
+  return new THREE.LatheGeometry(prof, seg);
+}
+/** 快取的 SDF 網格 → 帶頂點色（顏色 × 環境遮蔽）的幾何，座標乘 k */
+function sdfGeo(m, rgb, k, face = null) {
+  const g = new THREE.BufferGeometry(), l = lin(rgb), n = m.col.length;
+  const lipC = lin([0.62, 0.30, 0.30]), eyeC = lin([0.07, 0.05, 0.05]), browC = face ? lin(face.brow) : null;
+  const mixIn = (c, t, k2) => { for (let j = 0; j < 3; j++) c[j] = c[j] + (t[j] - c[j]) * k2; };
+  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    pos[3 * i] = m.pos[3 * i] * k; pos[3 * i + 1] = m.pos[3 * i + 1] * k; pos[3 * i + 2] = m.pos[3 * i + 2] * k;
+    const ao = m.col[i], c = [l[0], l[1], l[2]];
+    if (face) { // 臉部上色：眼、眉、唇（頭部座標，身高 = 1 的單位）
+      const x = Math.abs(m.pos[3 * i]), y = m.pos[3 * i + 1], z = m.pos[3 * i + 2];
+      if (z > 0.04) {
+        const bell = (v, a, b) => Math.max(0, 1 - Math.abs(v - (a + b) / 2) / ((b - a) / 2));
+        mixIn(c, eyeC, 0.85 * bell(x, 0.0095, 0.0275) * bell(y, -0.0025, 0.0085));
+        mixIn(c, browC, 0.8 * bell(x, 0.006, 0.034) * bell(y, 0.0125, 0.0225));
+        mixIn(c, lipC, 0.7 * bell(x, -0.001, 0.0145) * bell(y, -0.0385, -0.0245));
+      }
+    }
+    col[3 * i] = c[0] * ao; col[3 * i + 1] = c[1] * ao; col[3 * i + 2] = c[2] * ao;
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.setIndex(new THREE.BufferAttribute(Uint32Array.from(m.idx), 1));
+  g.computeVertexNormals();
   return g;
+}
+function part3(parent, geo, mat, pos = [0, 0, 0], scale = null) { // 已經帶顏色的幾何
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(...pos);
+  if (scale) m.scale.set(...scale);
+  parent.add(m);
+  return m;
 }
 const sphere = (r, w = 12, h = 8) => new THREE.SphereGeometry(r, w, h);
 const box = (x, y, z) => new THREE.BoxGeometry(x, y, z);
@@ -99,7 +140,7 @@ function buildPerson(def, M, rng) {
   const root = new THREE.Group();
   root.name = def.id;
   const hips = piv(root, 0, L, 0);
-  part(hips, sphere(0.09 * h, 12, 8), M.cloth, legCol, [0, 0, 0], null, [1.1, 0.6, 0.8]);
+  part(hips, sphere(0.09 * h, 12, 8), M.cloth, o.skirt || legCol, [0, 0, 0], null, [1.1, 0.6, 0.8]);
 
   const torso = piv(hips, 0, 0, 0);
   const coatLen = o.coatLen != null ? o.coatLen * h : def.kind === 'elder' || def.kind === 'local' ? 0.16 * h : 0.05 * h;
@@ -107,7 +148,7 @@ function buildPerson(def, M, rng) {
   // 外套：由肩到臀下方的旋轉體（略寬、下擺張開）
   const coatProfile = [[0.001, torsoL + 0.02 * h], [0.06 * h, torsoL + 0.01 * h], [0.085 * h, torsoL - 0.05 * h], [0.082 * h, torsoL * 0.5],
     [0.085 * h, 0.02 * h], [coatFlare, -coatLen]].map(([r, y]) => new THREE.Vector2(r, y));
-  part(torso, new THREE.LatheGeometry(coatProfile, 14), M.cloth, o.coat, [0, 0, 0], null, [1.18, 1, 0.78]);
+  part(torso, new THREE.LatheGeometry(coatProfile, 28), M.cloth, o.coat, [0, 0, 0], null, [1.18, 1, 0.78]);
   let skirt = null;
   if (o.skirt) {
     const sk = (o.skirtLen || (child ? 0.16 : 0.33)) * h, flare = (o.skirtFlare || 0.13) * h;
@@ -124,14 +165,16 @@ function buildPerson(def, M, rng) {
   const neck = piv(torso, 0, torsoL + 0.01 * h, 0);
   part(neck, cyl(0.022 * h, 0.025 * h, 0.05 * h, 8), M.skin, skinTone, [0, 0.02 * h, 0]);
   const head = piv(neck, 0, 0.045 * h, 0);
-  part(head, sphere(headR, 16, 12), M.skin, skinTone, [0, headR, 0.004 * h], null, [0.9, 1.06, 0.98]);
-  part(head, sphere(headR * 0.18, 6, 4), M.skin, skinTone, [0, headR * 0.95, headR * 0.95]); // 鼻
-  for (const s of [-1, 1]) part(head, sphere(headR * 0.1, 6, 4), M.cloth, [0.05, 0.04, 0.04], [s * headR * 0.36, headR * 1.12, headR * 0.86]); // 眼
+  {
+    // SDF 雕刻的臉（眉骨、眼窩、鼻、嘴唇、耳）與頭髮：皮膚與頭髮分開上色
+    const style = def.hairStyle || (elder ? 'short' : def.sex === 'f' ? 'long' : 'short');
+    const parts = sdfHeadParts({ female: def.sex === 'f', hair: style, beard: !!def.beard, veil: o.hat === 'scarf', seed: rng.int(0, 2) }, 0.0085);
+    const k = (child ? 1.05 : 1.0) * h;
+    part3(head, sdfGeo(parts.skin, skinTone, k, { brow: hairCol }), M.skin, [0, headR, 0.004 * h]);
+    if (parts.hair) part3(head, sdfGeo(parts.hair, hairCol, k), M.cloth, [0, headR, 0.004 * h]);
+  }
   if (o.hat === 'scarf') {
     part(head, new THREE.SphereGeometry(headR * 1.12, 14, 10, Math.PI * 0.8, Math.PI * 1.4, 0, Math.PI * 0.75), M.cloth, o.scarf, [0, headR * 1.02, 0]);
-  } else {
-    part(head, new THREE.SphereGeometry(headR * 1.06, 14, 8, Math.PI * 0.75, Math.PI * 1.5, 0, Math.PI * 0.55), M.cloth, hairCol, [0, headR * 1.05, -0.002 * h]);
-    if (def.sex === 'f' && !elder) part(head, box(headR * 1.5, headR * 1.6, headR * 0.5), M.cloth, hairCol, [0, headR * 0.55, -headR * 0.7]);
   }
   if (o.hat === 'beret') part(head, sphere(headR * 1.12, 14, 6), M.cloth, [0.08, 0.08, 0.10], [headR * 0.1, headR * 1.85, 0], [0, 0, -0.2], [1, 0.32, 1]);
   if (o.hat === 'cap') {
@@ -143,22 +186,25 @@ function buildPerson(def, M, rng) {
   const arms = [];
   for (const s of [-1, 1]) {
     const sh = piv(torso, s * shoulder, torsoL - 0.025 * h, 0);
-    part(sh, limb(0.03 * h, upA), M.cloth, o.coat);
+    part(sh, limb(0.031 * h, upA, 14, 0.026 * h), M.cloth, o.coat);
+    part(sh, sphere(0.032 * h, 12, 8), M.cloth, o.coat);   // 肩
     const el = piv(sh, 0, -upA + 0.01 * h, 0);
-    part(el, limb(0.025 * h, foA), M.cloth, o.coat);
+    part(el, limb(0.026 * h, foA, 14, 0.019 * h), M.cloth, o.coat);
+    part(el, sphere(0.027 * h, 10, 8), M.cloth, o.coat);   // 手肘
     const hand = piv(el, 0, -foA, 0);
-    part(hand, sphere(0.024 * h, 8, 6), M.skin, skinTone, [0, -0.015 * h, 0], null, [0.8, 1.2, 0.6]);
+    part3(hand, sdfGeo(sdfHandHanging(0.006), skinTone, 0.92 * h), M.skin, [0, -0.004 * h, 0], [s, 1, 1]);
     arms.push({ sh, el, hand, s });
   }
   // 腿
   const legs = [];
   for (const s of [-1, 1]) {
     const th = piv(hips, s * hipW, 0, 0);
-    part(th, limb(0.047 * h, thighL + 0.02 * h), M.cloth, legCol);
+    part(th, limb(0.05 * h, thighL + 0.02 * h, 14, 0.04 * h), M.cloth, legCol);
     const kn = piv(th, 0, -thighL, 0);
-    part(kn, limb(0.036 * h, shinL + 0.01 * h), M.cloth, o.skirt && !child ? skinTone.map((v) => v * 0.9) : legCol);
+    part(kn, limb(0.04 * h, shinL + 0.01 * h, 14, 0.027 * h), M.cloth, o.skirt && !child ? skinTone.map((v) => v * 0.9) : legCol);
     const ft = piv(kn, 0, -shinL, 0);
-    part(ft, box(0.05 * h, 0.035 * h, 0.13 * h), M.cloth, shoe, [0, -0.012 * h, 0.035 * h]);
+    part(ft, sphere(0.5, 14, 8), M.cloth, shoe, [0, -0.014 * h, 0.04 * h], null, [0.056 * h, 0.04 * h, 0.15 * h]);       // 鞋身
+    part(ft, sphere(0.5, 10, 6), M.cloth, shoe, [0, -0.012 * h, -0.02 * h], null, [0.05 * h, 0.05 * h, 0.06 * h]);       // 鞋跟處
     legs.push({ th, kn, ft, s });
   }
   const R = arms[1], Lh = arms[0];
@@ -665,7 +711,6 @@ export function build({ layout, materials, variant, rng }) {
       part(es.torso, new THREE.TorusGeometry(0.088 * h, 0.022 * h, 6, 16), M.cloth, ST.esmeralda.outfit.sash, [0, 0.03 * h, 0], [Math.PI / 2, 0, 0], [1.15, 0.8, 1]);
       part(es.head, new THREE.TorusGeometry(es.h * 0.066, 0.008 * h, 5, 16), M.cloth, ST.esmeralda.outfit.headband, [0, 0.085 * h, 0], [Math.PI / 2 - 0.2, 0, 0]);
       for (const s of [-1, 1]) part(es.head, sphere(0.012 * h, 6, 4), M.cloth, ST.esmeralda.outfit.sash, [s * 0.062 * h, 0.05 * h, 0]); // 耳環
-      part(es.head, box(0.13 * h, 0.2 * h, 0.05 * h), M.cloth, ST.esmeralda.hair, [0, -0.02 * h, -0.05 * h]); // 長髮
       const tamb = part(es.arms[1].hand, cyl(0.12, 0.12, 0.045, 16), M.cloth, [0.78, 0.62, 0.40], [0, -0.06, 0.04], [0, 0, Math.PI / 2]);
       tamb.name = 'tambourine';
     }

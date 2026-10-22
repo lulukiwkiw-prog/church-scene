@@ -17,7 +17,7 @@ export const BUDGETS = {
   roofs: 600_000,
   sculpture: 4_300_000,
   environment: 1_000_000,
-  actors: 200_000,
+  actors: 400_000,
 };
 const BUILD_MODULES = Object.keys(BUDGETS);
 const names = process.argv.slice(2).length ? process.argv.slice(2) : BUILD_MODULES;
