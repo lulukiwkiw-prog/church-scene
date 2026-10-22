@@ -163,15 +163,15 @@ function buildPerson(def, M, rng) {
   part(hips, sphere(0.09 * h, 12, 8), M.cloth, o.skirt || legCol, [0, 0, 0], null, [1.1, 0.6, 0.8]);
 
   const torso = piv(hips, 0, 0, 0);
-  const coatLen = o.coatLen != null ? o.coatLen * h : def.kind === 'elder' || def.kind === 'local' ? 0.16 * h : 0.05 * h;
-  const coatFlare = (o.coatFlare || 0.095) * h; // 長袍下擺半徑
+  const coatLen = o.skirt ? 0.0 : o.coatLen != null ? o.coatLen * h : def.kind === 'elder' || def.kind === 'local' ? 0.16 * h : 0.05 * h; // 穿裙子的人上衣到腰為止
+  const coatFlare = (o.skirt ? 0.09 : o.coatFlare || 0.095) * h; // 長袍下擺半徑
   // 外套：由肩（斜肩）、胸、腰到臀與下襬的旋轉體；女性腰細、有胸線；下半身有衣褶
   const fem = def.sex === 'f' && !child, foldPh = rng.next() * TAU;
   const shR = (fem ? 0.088 : 0.097) * h, chR = (fem ? 0.083 : 0.092) * h;
   const waR = (fem ? 0.064 : elder ? 0.09 : child ? 0.078 : 0.082) * h, hipR = (fem ? 0.094 : 0.088) * h;
   const coatProfile = [[0.001, torsoL + 0.03 * h], [0.045 * h, torsoL + 0.026 * h], [0.075 * h, torsoL + 0.008 * h], [shR, torsoL - 0.02 * h], [chR, torsoL - 0.07 * h],
     [(chR + waR) / 2, torsoL * 0.68], [waR, torsoL * 0.45], [hipR, 0.0], [Math.max(hipR, coatFlare * 0.55) * 1.02, -0.03 * h], [Math.max(coatFlare, hipR), -coatLen]].map(([r, y]) => new THREE.Vector2(r, y));
-  const coatG = new THREE.LatheGeometry(coatProfile, 36);
+  const coatG = new THREE.LatheGeometry(coatProfile.reverse(), 36); // 輪廓由下往上，面才朝外（之前反了，外套變成只看得到內側 = 簍空）
   if (fem) { // 胸線：衣服表面自己隆起（不另加球體），布料包在外面
     const pp = coatG.attributes.position;
     for (let i = 0; i < pp.count; i++) {
@@ -186,9 +186,16 @@ function buildPerson(def, M, rng) {
   let skirt = null;
   if (o.skirt) {
     const sk = (o.skirtLen || (child ? 0.16 : 0.33)) * h, flare = (o.skirtFlare || 0.13) * h;
-    const g = new THREE.CylinderGeometry(0.108 * h, flare, sk, 56, 14, true);
-    g.translate(0, -sk / 2 + 0.02 * h, 0); // 樞紐在腰：張開時從腰往外擺
-    foldGeo(g, { n: 13, amp: 0.13, y0: 0.0, y1: -sk, ph: foldPh + 1.3, hem: 0.05 * sk });
+    // 裙子：由下往上的旋轉體，腰帶處收進腰圍（不再露出裡面），往下很快張開蓋住大腿
+    const keys = [[flare, -sk + 0.02 * h], [0.122 * h, -0.02 * h], [0.114 * h, 0.012 * h], [0.092 * h, 0.05 * h]];
+    const pts = [];
+    for (let i = 0; i < keys.length - 1; i++) {
+      const n = i === 0 ? 14 : 3;
+      for (let j = 0; j < n; j++) { const u = j / n; pts.push(new THREE.Vector2(lerp(keys[i][0], keys[i + 1][0], u), lerp(keys[i][1], keys[i + 1][1], u))); }
+    }
+    pts.push(new THREE.Vector2(...keys[keys.length - 1]));
+    const g = new THREE.LatheGeometry(pts, 56);
+    foldGeo(g, { n: 13, amp: 0.13, y0: 0.0, y1: -sk + 0.02 * h, ph: foldPh + 1.3, hem: 0.05 * sk });
     skirt = part(hips, g, M.cloth, o.skirt);
     skirt.material = M.clothDouble;
   }
@@ -744,7 +751,7 @@ export function build({ layout, materials, variant, rng }) {
     const es = mk(ST.esmeralda, 'local', 'f');
     {
       const h = es.h;
-      part(es.torso, new THREE.TorusGeometry(0.088 * h, 0.022 * h, 6, 16), M.cloth, ST.esmeralda.outfit.sash, [0, 0.03 * h, 0], [Math.PI / 2, 0, 0], [1.15, 0.8, 1]);
+      part(es.torso, new THREE.TorusGeometry(0.09 * h, 0.02 * h, 8, 28), M.cloth, ST.esmeralda.outfit.sash, [0, 0.045 * h, 0], [Math.PI / 2, 0, 0], [1.2, 0.85, 1]);
       part(es.head, new THREE.TorusGeometry(es.h * 0.066, 0.008 * h, 5, 16), M.cloth, ST.esmeralda.outfit.headband, [0, 0.085 * h, 0], [Math.PI / 2 - 0.2, 0, 0]);
       for (const s of [-1, 1]) part(es.head, sphere(0.012 * h, 6, 4), M.cloth, ST.esmeralda.outfit.sash, [s * 0.062 * h, 0.05 * h, 0]); // 耳環
       const tamb = part(es.arms[1].hand, cyl(0.12, 0.12, 0.045, 16), M.cloth, [0.78, 0.62, 0.40], [0, -0.06, 0.04], [0, 0, Math.PI / 2]);
