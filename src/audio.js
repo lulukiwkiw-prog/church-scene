@@ -45,6 +45,9 @@ const SCORE = [
 ].map(([c, mel]) => ({ chord: CH[c].map(n), bass: BASS[c].map(n), mel: mel.map(([at, d, p]) => [at, d, n(p)]) }));
 const BPM = 92, BEAT = 60 / BPM, BAR = 4 * BEAT, SIX = BEAT / 4;
 const PEAL_BAR = 4; // 鐘聲在第 5 小節加入（約第 10.4 秒）
+// 鐘聲音量（版本 2：原本較大聲的音量；版本 1 為 0.065 / 0.11）
+const BELL_GAIN = 0.16, TOLL_GAIN = 0.28;
+const MUSIC_UNDER_BELLS = 0.5; // 鐘響時音樂的音量比例
 // 巴薩諾瓦吉他節奏（以十六分音符為格，兩小節一組）：和弦撥奏與拇指低音
 const GUITAR_HITS = [[0, 3, 6, 10, 13], [2, 6, 10, 12]];
 const THUMB = [0, 6, 8, 14];
@@ -105,18 +108,23 @@ export function createAudio({ layout }) {
     src.start(when);
   }
   function peal(start) {
-    const np = panner(towerPos(north)); np.connect(bellBus);
-    const sp = panner(towerPos(south)); sp.connect(bellBus);
+    // 鐘聲傳得遠：衰減比一般聲源緩和
+    const np = panner(towerPos(north), 30, 0.35); np.connect(bellBus);
+    const sp = panner(towerPos(south), 30, 0.35); sp.connect(bellBus);
     let t = start;
     for (let round = 0; round < 4; round++) {
       PEAL.forEach((f, i) => {
-        bell(f, t + (rand() - 0.5) * 0.02, 0.065, i % 2 ? sp : np); // 兩座塔交替，聽起來左右呼應
+        bell(f, t + (rand() - 0.5) * 0.02, BELL_GAIN, i % 2 ? sp : np); // 兩座塔交替，聽起來左右呼應
         t += BEAT / 2; // 對齊配樂的八分音符
       });
       t += BEAT / 2; // 每輪之間的空拍
     }
     t += BEAT;
-    for (let k = 0; k < 3; k++) { bell(TOLL, t, 0.11, sp); t += 3 * BEAT; }
+    for (let k = 0; k < 3; k++) { bell(TOLL, t, TOLL_GAIN, sp); t += 3 * BEAT; }
+    // 鐘響時音樂稍微讓開（不停），鐘聲結束再回來
+    const g = musicBus.gain;
+    g.setTargetAtTime(musicOn ? MUSIC_UNDER_BELLS : 0, start - 0.3, 0.5);
+    g.setTargetAtTime(musicOn ? 1 : 0, t, 1.2);
     return t;
   }
 
