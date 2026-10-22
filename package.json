@@ -1,0 +1,17 @@
+{
+  "name": "church-scene",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node tools/check-layout.mjs && node tools/check-modules.mjs",
+    "plan": "node tools/plan.mjs",
+    "shoot": "node tools/shoot.mjs",
+    "site": "node tools/build-site.mjs"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "playwright-core": "1.56.0"
+  }
+}
