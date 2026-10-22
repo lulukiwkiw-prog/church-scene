@@ -25,9 +25,9 @@ function wingFrame(s) {
   const N = [U[1] * V[2] - U[2] * V[1], U[2] * V[0] - U[0] * V[2], U[0] * V[1] - U[1] * V[0]];
   return { O, U, V, N };
 }
-const WING = { '-1': wingFrame(-1), 1: wingFrame(1) };
+export const WING = { '-1': wingFrame(-1), 1: wingFrame(1) };
 
-function wing(x, y, z, s) {
+export function wing(x, y, z, s, bat = false) {
   const { O, U, V, N } = WING[s];
   const px = x - O[0], py = y - O[1], pz = z - O[2];
   const u = px * U[0] + py * U[1] + pz * U[2], v = px * V[0] + py * V[1] + pz * V[2], t = px * N[0] + py * N[1] + pz * N[2];
@@ -36,18 +36,27 @@ function wing(x, y, z, s) {
   const wf = q * q < 1 ? sqrt(1 - q * q) : 0;
   const w = 0.15 * wf * (1 - 0.2 * q);
   const dv = v - 0.02;
-  const scal = dv > 0 ? 1 + 0.075 * sin(u * 38) : 1;
+  const scal = dv > 0 ? (bat ? 1 - 0.34 * Math.pow(abs(sin(u * 11)), 0.7) : 1 + 0.075 * sin(u * 38)) : 1;
   const d2 = max(abs(dv) - w * scal, abs(u - 0.29) - 0.31);
-  const th = 0.036 - 0.014 * sstep(0, 0.14, dv);
+  const th = bat ? 0.016 : 0.036 - 0.014 * sstep(0, 0.14, dv);
   let d = smax(d2, abs(t) - th, 0.016);
   // 扇形肋紋與羽列
   const ang = atan2(v + 0.05, u + 0.04), r = hypot(u + 0.10, v);
-  d -= 0.0055 * max(0, sin(ang * 19 + 0.6)) * sstep(0.06, 0.16, u);
-  d -= 0.0040 * max(0, sin(r * 58)) * sstep(0.12, 0.25, u) * sstep(0.0, 0.05, dv + 0.10);
+  if (!bat) {
+    d -= 0.0055 * max(0, sin(ang * 19 + 0.6)) * sstep(0.06, 0.16, u);
+    d -= 0.0040 * max(0, sin(r * 58)) * sstep(0.12, 0.25, u) * sstep(0.0, 0.05, dv + 0.10);
+  }
   // 前緣的粗骨
   const bx = (a, b) => [O[0] + U[0] * a + V[0] * b, O[1] + U[1] * a + V[1] * b, O[2] + U[2] * a + V[2] * b];
   const b0 = bx(0.03, -0.07), b1 = bx(0.56, -0.03);
   d = smin(d, cone(x, y, z, b0[0], b0[1], b0[2], b1[0], b1[1], b1[2], 0.034, 0.014), 0.03);
+  if (bat) { // 蝙蝠翼的指骨：從腕部呈扇形散開
+    const w0 = bx(0.5, -0.03);
+    for (const [a, b] of [[0.16, 0.2], [0.28, 0.27], [0.42, 0.25]]) {
+      const t = bx(a, b);
+      d = smin(d, cone(x, y, z, w0[0], w0[1], w0[2], t[0], t[1], t[2], 0.013, 0.006), 0.012);
+    }
+  }
   return d;
 }
 
@@ -108,7 +117,7 @@ function handChin(x, y, z) { // 托住下巴的左手
 }
 
 // ---- 軀幹、腿、手臂 ----
-function torso(x, y, z) {
+export function torso(x, y, z) {
   const xs = x * 0.88; // 胸比較寬
   let d = cone(xs, y, z, 0, 0.25, -0.20, 0, 0.42, -0.15, 0.14, 0.175);
   d = smin(d, cone(xs, y, z, 0, 0.42, -0.15, 0, 0.55, -0.04, 0.175, 0.185), 0.05);
@@ -128,7 +137,7 @@ function torso(x, y, z) {
   d -= 0.0065 * rib;
   return d;
 }
-function leg(x, y, z, s) {
+export function leg(x, y, z, s) {
   const ax = x * s; // 單側
   let d = cone(ax, y, z, 0.135, 0.20, -0.19, 0.20, 0.31, 0.08, 0.10, 0.07);                  // 大腿
   d = smin(d, cone(ax, y, z, 0.20, 0.31, 0.08, 0.15, 0.055, 0.21, 0.06, 0.032), 0.03);       // 小腿
@@ -154,7 +163,7 @@ function arm(x, y, z, s) {
 }
 
 // ---- 風化起伏（細顆粒 + 大坑洞）----
-function weather(x, y, z) {
+export function weather(x, y, z) {
   return 0.0035 * (noise3(x * 34, y * 34, z * 34) - 0.5) * 2 + 0.008 * (noise3(x * 11 + 5, y * 11, z * 11) - 0.5) * 2;
 }
 

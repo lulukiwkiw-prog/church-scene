@@ -15,7 +15,7 @@ export const BUDGETS = {
   structure: 400_000,
   facades: 1_500_000,
   roofs: 600_000,
-  sculpture: 3_200_000,
+  sculpture: 3_800_000,
   environment: 1_000_000,
   actors: 200_000,
 };

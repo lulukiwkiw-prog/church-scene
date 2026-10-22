@@ -121,7 +121,7 @@ const RES = [
 export function figure(M, S) {
   const R = RES[S.lod];
   // 近看的人像（lod 2）：臉、手與袖子改用雕刻式網格（見 sdfhuman.js）；野獸、裸像、無頭像維持原做法
-  const sdf = S.lod === 2 && S.pose !== 'nude' && !S.headless && !S.head.beast && S.sdf !== false;
+  const sdf = (S.lod === 2 || S.sdf === true) && S.pose !== 'nude' && !S.headless && !S.head.beast && S.sdf !== false;
   S.head.sdf = sdf;
   if (sdf && S.head.seed === undefined) S.head.seed = Math.floor((S.foldPhase / TAU) * 4) % 4;
   const seat = S.pose === 'seat', nude = S.pose === 'nude';
