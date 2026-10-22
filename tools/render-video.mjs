@@ -14,10 +14,10 @@
 //   --crf 16 --preset slow H.264 參數
 //   --stills 0,10,27       拍指定秒數的單張（加 --stills kf 代表所有關鍵點）
 //   --no-video             只算影格不合成
-//   --debug                加入測試量體（index.html?debug=1）
+//   --debug                加入測試量體（render.html?debug=1）
 //   --m a,b                只載入部分模組
 //   --look golden|overcast 光線風格範本
-//   其他參數（--tone --exposure --bloom --msaa --shadow）原樣傳給 index.html
+//   其他參數（--tone --exposure --bloom --msaa --shadow）原樣傳給 render.html
 // 已存在的影格會跳過（斷點續算）。每格印出耗時與預估剩餘時間。
 import { mkdirSync, existsSync, statSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -79,7 +79,7 @@ async function openPage() {
   page.on('console', (m) => { if (m.type() === 'error') console.log(`  [browser] ${m.text()}`); });
   page.on('pageerror', (e) => console.log(`  [pageerror] ${e.message}`));
   const t0 = Date.now();
-  await page.goto(`http://127.0.0.1:${port}/index.html?${qs}`);
+  await page.goto(`http://127.0.0.1:${port}/render.html?${qs}`);
   await page.waitForFunction(() => window.__ready === true, null, { timeout: 0, polling: 500 });
   const st = await page.evaluate(() => window.__stats);
   console.log(`場景就緒 ${fmt((Date.now() - t0) / 1000)} · 三角形 ${st.triangles?.toLocaleString()} · draw calls ${st.calls} · 陰影 texel(cm) ${JSON.stringify(st.shadowTexelCm)}`);

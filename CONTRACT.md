@@ -21,7 +21,7 @@
 | 4 | 雕刻 | `src/sculpture.js`（可另建 `src/sculpture/*.js`） | 2.5M |
 | 5 | 廣場與環境 | `src/environment.js`（可另建 `src/environment/*.js`） | 1.0M |
 | 7 | 活動物件（人物、鴿子、貓、狗） | `src/actors.js` | 200k |
-| 6 | 光影鏡頭輸出 | `index.html`、`src/main.js`、`src/render/*`、`tools/render-video.mjs` | — |
+| 6 | 光影鏡頭輸出 | `render.html`、`src/main.js`、`src/render/*`、`tools/render-video.mjs` | — |
 
 大量重複的東西（雕像、細柱、窗花、樹芽、欄杆柱）用 `InstancedMesh` 或合併幾何（`BufferGeometryUtils.mergeGeometries`），控制 draw call。
 
