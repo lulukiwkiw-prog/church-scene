@@ -617,7 +617,7 @@ const parvis = {
     ],
   },
   // 法國公路零起點：嵌在鋪面的八角銅星
-  pointZero: { x: -21.0, z: 3.0, diameter: 0.6, material: 'bronze' },
+  pointZero: { x: -21.0, z: 3.0, diameter: 1.6, material: 'bronze' },
   // 考古地下室入口（往下的階梯）
   cryptEntrance: { x0: -108.0, x1: -98.0, z0: -3.0, z1: 3.0, depth: 3.5, steps: 18, railingHeight: 1.0 },
   // 查理曼與騎士銅像（南側、靠塞納河）
