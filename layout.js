@@ -832,6 +832,48 @@ const camera = {
 };
 
 // -----------------------------------------------------------------------------
+// 展示影片（約 60 秒、4K、30 fps）：七個緩慢移動的鏡頭，鏡頭之間交叉淡化，畫面上沒有文字。
+// 每個鏡頭的 t 從 0 起算；t0 是場景時間（人物、水面、雲）的起點；easeEnds: false 讓鏡頭在交接時仍在移動。
+// 成片長度 = Σ dur − 6 × crossfade = 64.8 − 4.8 = 60 秒。
+// 太陽在西南偏西（247°、19°），所以西立面與南側受光；開場用西北側的斜光，雕刻最立體。
+// -----------------------------------------------------------------------------
+const showreel = {
+  fps: 30,
+  resolution: [3840, 2160],
+  crossfade: 0.8,
+  shots: [
+    { id: 'hero', dur: 9, t0: 0, keyframes: [
+      { t: 0, position: [-72, 20, -58], target: [0, 33, 3], fovDeg: 38 },
+      { t: 9, position: [-60, 25, -44], target: [0, 35, 1], fovDeg: 37 },
+    ] },
+    { id: 'portals', dur: 8.5, t0: 10, keyframes: [
+      { t: 0, position: [-16, 2.2, -10], target: [0, 7, -7], fovDeg: 34 },
+      { t: 8.5, position: [-15, 2.6, 6], target: [0, 7.5, 5], fovDeg: 34 },
+    ] },
+    { id: 'kings-rose', dur: 8.5, t0: 20, keyframes: [
+      { t: 0, position: [-21, 13, 4], target: [0, 17.5, 0], fovDeg: 36 },
+      { t: 8.5, position: [-21, 29, -2], target: [0, 31, 0], fovDeg: 36 },
+    ] },
+    { id: 'stryge', dur: 8.5, t0: 30, keyframes: [
+      { t: 0, position: [-4.0, 47.4, -25.2], target: [0, 46.8, -FACADE_HALF_W], fovDeg: 30 },
+      { t: 8.5, position: [-7.5, 48.4, -23.0], target: [0, 46.6, -FACADE_HALF_W], fovDeg: 30 },
+    ] },
+    { id: 'roof-spire', dur: 9.5, t0: 40, keyframes: [
+      { t: 0, position: [8, 60, 9], target: [66, 70, 0], fovDeg: 40 },
+      { t: 9.5, position: [28, 57, 15], target: [66, 72, 0], fovDeg: 40 },
+    ] },
+    { id: 'seine', dur: 9.5, t0: 50, keyframes: [
+      { t: 0, position: [10, 24, 100], target: [40, 24, 0], fovDeg: 42 },
+      { t: 9.5, position: [72, 30, 100], target: [80, 27, 0], fovDeg: 42 },
+    ] },
+    { id: 'finale', dur: 11.3, t0: 60, keyframes: [
+      { t: 0, position: [-40, 38, 112], target: [50, 34, 0], fovDeg: 42 },
+      { t: 11.3, position: [-118, 88, 178], target: [45, 34, 0], fovDeg: 42 },
+    ] },
+  ],
+};
+
+// -----------------------------------------------------------------------------
 // 匯出
 // -----------------------------------------------------------------------------
 function deepFreeze(o) {
@@ -854,6 +896,7 @@ export const LAYOUT = deepFreeze({
   },
   sun,
   camera,
+  showreel,
   cathedral,
   parvis,
   actors,

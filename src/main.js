@@ -62,7 +62,10 @@ const PRESET = LOOKS[q.get('look')] || null;
 if (PRESET) Object.assign(LOOK, PRESET.look);
 
 const sunDir = new THREE.Vector3(...LAYOUT.sun.direction).normalize();
-const path = createCameraPath(LAYOUT.camera);
+// ?reel=i：展示影片的第 i 個鏡頭（layout.showreel）；場景時間從 shot.t0 起算
+const REEL = q.get('reel') !== null ? LAYOUT.showreel.shots[+q.get('reel')] : null;
+const T0 = REEL ? REEL.t0 : 0;
+const path = createCameraPath(REEL ? { ...LAYOUT.camera, keyframes: REEL.keyframes, durationSec: REEL.dur, easeEnds: false } : LAYOUT.camera);
 const DURATION = path.duration;
 const FRAMES = Math.round(DURATION * FPS);
 
@@ -178,8 +181,9 @@ async function loadModules() {
 // 依時間設定整個場景（唯一的動畫入口）
 // -----------------------------------------------------------------------------
 const shot = { position: new THREE.Vector3(), target: new THREE.Vector3(), fov: 45, shot: '' };
-function setTime(t) {
-  path.sample(t, shot);
+function setTime(tc) {
+  path.sample(tc, shot);
+  const t = tc + T0; // 場景時間
   camera.position.copy(shot.position);
   camera.fov = shot.fov;
   camera.aspect = W / H;

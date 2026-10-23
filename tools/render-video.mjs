@@ -17,6 +17,7 @@
 //   --debug                加入測試量體（render.html?debug=1）
 //   --m a,b                只載入部分模組
 //   --look golden|overcast 光線風格範本
+//   --reel i               展示影片（layout.showreel）的第 i 個鏡頭
 //   其他參數（--tone --exposure --bloom --msaa --shadow）原樣傳給 render.html
 // 已存在的影格會跳過（斷點續算）。每格印出耗時與預估剩餘時間。
 import { mkdirSync, existsSync, statSync, renameSync, writeFileSync } from 'node:fs';
@@ -40,18 +41,20 @@ for (let i = 0; i < argv.length; i++) {
 const [RW, RH] = LAYOUT.camera.resolution;
 const W = +(args.w || RW), H = +(args.h || RH);
 const FPS = +(args.fps || LAYOUT.camera.fps);
-const TOTAL = Math.round(LAYOUT.camera.durationSec * FPS);
+const REEL = args.reel !== undefined && args.reel !== true ? LAYOUT.showreel.shots[+args.reel] : null; // --reel i：展示影片的第 i 個鏡頭
+const TOTAL = Math.round((REEL ? REEL.dur : LAYOUT.camera.durationSec) * FPS);
 const FROM = Math.max(0, +(args.from || 0));
 const TO = Math.min(TOTAL, +(args.to || TOTAL));
 const EVERY = Math.max(1, +(args.every || 1));
 const OUT = resolve(ROOT, args.out || 'out/notre-dame.mp4');
-const FRAMES_DIR = resolve(ROOT, args.frames || `out/frames/${W}x${H}@${FPS}${args.debug ? '-debug' : ''}`);
+const FRAMES_DIR = resolve(ROOT, args.frames || `out/frames/${REEL ? `reel-${REEL.id}-` : ''}${W}x${H}@${FPS}${args.debug ? '-debug' : ''}`);
 const pad = (n) => String(n).padStart(5, '0');
 const framePath = (f) => join(FRAMES_DIR, `frame-${pad(f)}.png`);
 const fmt = (s) => (s >= 3600 ? `${Math.floor(s / 3600)}h${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}m` : s >= 60 ? `${Math.floor(s / 60)}m${String(Math.round(s % 60)).padStart(2, '0')}s` : `${s.toFixed(1)}s`);
 
 const qs = new URLSearchParams({ render: '1', w: String(W), h: String(H), fps: String(FPS) });
 if (args.debug) qs.set('debug', '1');
+if (REEL) qs.set('reel', args.reel);
 for (const k of ['m', 'tone', 'exposure', 'bloom', 'msaa', 'shadow', 'stress', 'look']) if (args[k] !== undefined && args[k] !== true) qs.set(k, args[k]);
 
 // 要算的影格

@@ -41,7 +41,7 @@ export function monotoneCubic(xs, ys, slope0 = 0, slopeN = 0) {
 }
 
 /** 一條穿過 points 的 centripetal Catmull-Rom 曲線，附「時間 → 點」的弧長等速對應 */
-function timedCurve(points, times) {
+function timedCurve(points, times, ease = true) {
   const n = points.length;
   const curve = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p)), false, 'centripetal');
   // 弧長表：每段細分 SUB 份
@@ -57,7 +57,10 @@ function timedCurve(points, times) {
     us.push(u); ss.push(acc);
   }
   const knotS = range(n).map((i) => ss[i * SUB]);
-  const sOfT = monotoneCubic(times, knotS, 0, 0);
+  // ease = false：起訖不減速（展示影片的鏡頭之間用交叉淡化銜接，鏡頭要一直在動）
+  const e0 = ease ? 0 : (knotS[1] - knotS[0]) / (times[1] - times[0]);
+  const eN = ease ? 0 : (knotS[n - 1] - knotS[n - 2]) / (times[n - 1] - times[n - 2]);
+  const sOfT = monotoneCubic(times, knotS, e0, eN);
   const uOfS = (s) => {
     if (s <= 0) return 0;
     if (s >= acc) return 1;
@@ -82,8 +85,9 @@ function range(n) { return Array.from({ length: n }, (_, i) => i); }
 export function createCameraPath(cam) {
   const kfs = cam.keyframes;
   const times = kfs.map((k) => k.t);
-  const pos = timedCurve(kfs.map((k) => k.position), times);
-  const tgt = timedCurve(kfs.map((k) => k.target), times);
+  const ease = cam.easeEnds !== false;
+  const pos = timedCurve(kfs.map((k) => k.position), times, ease);
+  const tgt = timedCurve(kfs.map((k) => k.target), times, ease);
   const fov = monotoneCubic(times, kfs.map((k) => k.fovDeg), 0, 0);
   const shotAt = (t) => {
     let s = '';
