@@ -31,6 +31,7 @@
   /* 載入畫面 */
   #loading { position: fixed; inset: 0; display: grid; place-content: center; gap: 18px; text-align: center; padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); background: radial-gradient(ellipse at 50% 60%, #3a2c1d 0%, var(--plate-solid) 70%); }
   #loading h1 { margin: 0; font: 600 clamp(32px, 7vw, 56px)/1 var(--display); letter-spacing: 0.06em; text-wrap: balance; }
+  #loading .kicker { color: var(--gold); font-size: clamp(17px, 3.6vw, 24px); font-weight: 500; letter-spacing: 0.18em; text-wrap: balance; }
   #loading p { margin: 0; color: var(--ink-dim); max-width: 34em; }
   #load-bar { --p: 0%; height: 2px; width: min(320px, 70vw); margin-inline: auto; background: var(--line); position: relative; }
   #load-bar::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--gold); transition: width 0.4s ease; }
@@ -86,6 +87,7 @@
 <div id="stage"></div>
 
 <section id="loading" aria-live="polite">
+  <div class="kicker">沉浸式法國巴黎聖母院 3D 模擬</div>
   <h1>Notre-Dame de Paris</h1>
   <p>2019 年火災前的聖母院，春分傍晚 17:00。所有建築、雕像、石材與天空都在你的瀏覽器裡即時由程式生成，沒有任何模型或照片。</p>
   <div class="facts">西立面寬 41 m · 鐘樓 69 m · 尖塔 96 m · 太陽 247° / 19°</div>
