@@ -843,8 +843,8 @@ const showreel = {
   crossfade: 0.8,
   shots: [
     { id: 'hero', dur: 9, t0: 0, keyframes: [
-      { t: 0, position: [-72, 20, -58], target: [0, 33, 3], fovDeg: 38 },
-      { t: 9, position: [-60, 25, -44], target: [0, 35, 1], fovDeg: 37 },
+      { t: 0, position: [-94, 13, -42], target: [4, 31, 0], fovDeg: 40 },
+      { t: 9, position: [-82, 18, -34], target: [4, 32, 0], fovDeg: 39 },
     ] },
     { id: 'portals', dur: 8.5, t0: 10, keyframes: [
       { t: 0, position: [-16, 2.2, -10], target: [0, 7, -7], fovDeg: 34 },
@@ -859,8 +859,8 @@ const showreel = {
       { t: 8.5, position: [-7.5, 48.4, -23.0], target: [0, 46.6, -FACADE_HALF_W], fovDeg: 30 },
     ] },
     { id: 'roof-spire', dur: 9.5, t0: 40, keyframes: [
-      { t: 0, position: [8, 60, 9], target: [66, 70, 0], fovDeg: 40 },
-      { t: 9.5, position: [28, 57, 15], target: [66, 72, 0], fovDeg: 40 },
+      { t: 0, position: [20, 52, 17], target: [66, 55, 0], fovDeg: 44 },
+      { t: 9.5, position: [38, 51, 21], target: [66, 57, 0], fovDeg: 44 },
     ] },
     { id: 'seine', dur: 9.5, t0: 50, keyframes: [
       { t: 0, position: [10, 24, 100], target: [40, 24, 0], fovDeg: 42 },
