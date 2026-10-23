@@ -348,7 +348,41 @@ export function createAudio({ layout }) {
     while (nextCoo < ahead) { playCoo(nextCoo); nextCoo += 5 + rand() * 7; }
   }
 
+  /**
+   * 影片配樂：把音樂與鐘聲離線混成一段立體聲 AudioBuffer（不需使用者點擊、不用 HRTF）。
+   * 與互動版同一份樂譜、同樣的音量比例（音樂 70%、鐘聲第 5 小節加入、殘響、壓縮）。
+   */
+  async function renderMix(seconds, { sr = 48000, fadeOut = 2 } = {}) {
+    const off = new OfflineAudioContext(2, Math.ceil(seconds * sr), sr), live = ctx;
+    ctx = off;
+    try {
+      const m = off.createGain(); m.gain.value = 0.8;
+      m.gain.setValueAtTime(0.8, Math.max(0, seconds - fadeOut));
+      m.gain.linearRampToValueAtTime(0, seconds);
+      const comp = off.createDynamicsCompressor();
+      m.connect(comp).connect(off.destination);
+      const verb = off.createConvolver();
+      const len = sr * 2.8, ir = off.createBuffer(2, len, sr);
+      for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (rand() * 2 - 1) * Math.pow(1 - i / len, 3.2); }
+      verb.buffer = ir;
+      const wet = off.createGain(); wet.gain.value = 0.3; verb.connect(wet).connect(m);
+      const mb = off.createGain(); mb.gain.value = MUSIC_LEVEL; mb.connect(m);
+      const mv = off.createGain(); mv.gain.value = 0.22; mb.connect(mv).connect(verb);
+      const bb = off.createGain(); bb.gain.value = 0.55; bb.connect(m);    // 沒有距離衰減，鐘聲整體稍微壓低
+      const bv = off.createGain(); bv.gain.value = 0.5; bb.connect(bv).connect(verb);
+      const t0 = 0.1;
+      for (let g = 0; t0 + g * BAR < seconds; g++) scheduleBar(g % SCORE.length, t0 + g * BAR, mb, Math.floor(g / SCORE.length));
+      // 北塔偏左、南塔偏右
+      const np = off.createStereoPanner(), sp = off.createStereoPanner();
+      np.pan.value = -0.45; sp.pan.value = 0.45;
+      np.connect(bb); sp.connect(bb);
+      for (let tb = t0 + PEAL_BAR * BAR; tb < seconds; tb += 2 * SCORE.length * BAR) peal(tb, np, sp);
+    } finally { ctx = live; }
+    return off.startRendering();
+  }
+
   return {
+    renderMix,
     get running() { return !!ctx && ctx.state === 'running' && !!timer; },
     get musicOn() { return musicOn; },
     get ready() { return !!assets; },
