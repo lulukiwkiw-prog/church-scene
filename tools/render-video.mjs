@@ -18,6 +18,7 @@
 //   --m a,b                只載入部分模組
 //   --look golden|overcast 光線風格範本
 //   --reel i               展示影片（layout.showreel）的第 i 個鏡頭
+//   --screenshot           改用頁面截圖擷取（預設直接讀畫布）
 //   其他參數（--tone --exposure --bloom --msaa --shadow）原樣傳給 render.html
 // 已存在的影格會跳過（斷點續算）。每格印出耗時與預估剩餘時間。
 import { mkdirSync, existsSync, statSync, renameSync, writeFileSync } from 'node:fs';
@@ -105,7 +106,19 @@ try {
         const t1 = Date.now();
         mkdirSync(dirname(dest), { recursive: true });
         const tmp = `${dest}.tmp`;
-        await page.screenshot({ path: tmp, type: 'png', clip: { x: 0, y: 0, width: W, height: H }, timeout: 0 });
+        if (args.screenshot) await page.screenshot({ path: tmp, type: 'png', clip: { x: 0, y: 0, width: W, height: H }, timeout: 0 });
+        else {
+          // 直接讀 WebGL 畫布（preserveDrawingBuffer）：頁面截圖在大解析度時偶爾會有整塊黑色的合成圖塊
+          const b64 = await page.evaluate(async () => {
+            const c = document.querySelector('canvas');
+            const blob = await new Promise((r) => c.toBlob(r, 'image/png'));
+            const u8 = new Uint8Array(await blob.arrayBuffer());
+            let str = '';
+            for (let i = 0; i < u8.length; i += 0x8000) str += String.fromCharCode(...u8.subarray(i, i + 0x8000));
+            return btoa(str);
+          });
+          writeFileSync(tmp, Buffer.from(b64, 'base64'));
+        }
         renameSync(tmp, dest);
         const t2 = Date.now();
         const sec = (t2 - t0) / 1000;
