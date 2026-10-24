@@ -180,6 +180,7 @@ async function loadModules() {
 // -----------------------------------------------------------------------------
 // 依時間設定整個場景（唯一的動畫入口）
 // -----------------------------------------------------------------------------
+const _wp = new THREE.Vector3();
 const shot = { position: new THREE.Vector3(), target: new THREE.Vector3(), fov: 45, shot: '' };
 function setTime(tc) {
   path.sample(tc, shot);
@@ -201,6 +202,11 @@ function setTime(tc) {
   }
 
   for (const u of animated) u(t); // 人物與動物（只由影格時間決定）
+  // 展示影片：飛過鏡頭前幾公尺內的鴿子或人物會變成一閃而過的巨大色塊，在離鏡頭 6 m 內時先藏起來
+  if (REEL) {
+    const actors = scene.getObjectByName('actors');
+    if (actors) for (const o of actors.children) o.visible = o.getWorldPosition(_wp).distanceTo(camera.position) > 6;
+  }
   lighting.update(camera);
 }
 

@@ -229,7 +229,8 @@ function towerRoof(lead, dark, t, turrets) {
 /** 聖器室：雙坡頂（屋脊沿 x，兩端山牆由結構模組做），以及連接詩班席的廊道小雙坡頂 */
 function sacristyRoof(lead, S) {
   const zc = (S.z0 + S.z1) / 2;
-  const E = S.eave, RG = S.ridge, o = 0.25; // 兩端略出挑蓋住山牆
+  const lift = 0.08; // 山牆斜邊的頂面和屋面在同一平面會互相閃爍（z-fighting），屋面整體抬高 8 cm
+  const E = S.eave + lift, RG = S.ridge + lift, o = 0.25; // 兩端略出挑蓋住山牆
   lead.poly([v3(S.x0 - o, E, S.z1), v3(S.x1 + o, E, S.z1), v3(S.x1 + o, RG, zc), v3(S.x0 - o, RG, zc)], v3(0, 1, 1));
   lead.poly([v3(S.x0 - o, E, S.z0), v3(S.x1 + o, E, S.z0), v3(S.x1 + o, RG, zc), v3(S.x0 - o, RG, zc)], v3(0, 1, -1));
   const p = S.passage, pc = (p.x0 + p.x1) / 2, pr = p.height + (p.x1 - p.x0) * 0.4;
