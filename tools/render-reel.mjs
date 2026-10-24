@@ -8,7 +8,7 @@
 // 參數：--w --h（預設 showreel.resolution）、--lanes 平行數（預設 2）、--look（預設 golden）、--msaa（預設 0，4K 不需要）
 // 每個鏡頭的影格存在 out/frames/reel-<id>-<w>x<h>@<fps>/，已存在的影格會跳過（斷點續算）。
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, mkdirSync } from 'node:fs';
+import { existsSync, readdirSync, mkdirSync, openSync, readSync, closeSync, renameSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LAYOUT } from '../layout.js';
@@ -51,6 +51,22 @@ if (!args['compose-only']) {
 }
 
 const missing = R.shots.filter((s) => have(s) < need(s));
+
+// 影格格式要一致：從畫布擷取的 PNG 是 RGBA、頁面截圖是 RGB；影像序列中途換格式，ffmpeg 會提早結束那一段。
+// 所以合成前把 RGBA 影格轉成 RGB（PNG 標頭第 25 位元組是色彩類型：6 = RGBA）。
+let converted = 0;
+for (const s of R.shots) {
+  for (const f of readdirSync(dirOf(s)).filter((n) => /^frame-\d+\.png$/.test(n))) {
+    const path = `${dirOf(s)}/${f}`, fd = openSync(path, 'r'), b = Buffer.alloc(26);
+    readSync(fd, b, 0, 26, 0); closeSync(fd);
+    if (b[25] !== 6) continue;
+    const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', path, '-pix_fmt', 'rgb24', `${path}.rgb.png`]);
+    if (r.status !== 0) { console.log(`轉換失敗：${path}`); process.exit(1); }
+    renameSync(`${path}.rgb.png`, path);
+    converted++;
+  }
+}
+if (converted) console.log(`${converted} 格 RGBA → RGB`);
 if (missing.length) { console.log(`還缺影格：${missing.map((s) => `${s.id} ${have(s)}/${need(s)}`).join('、')}，先不合成`); process.exit(1); }
 
 // 合成：每個鏡頭一個影像序列輸入，依序 xfade（offset = 目前成片長度 − 交叉淡化長度）
