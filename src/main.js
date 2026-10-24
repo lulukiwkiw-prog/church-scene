@@ -238,6 +238,15 @@ async function main() {
     stats.triangles = renderer.info.render.triangles;
     stats.calls = renderer.info.render.calls;
     stats.shadowTexelCm = lighting.texelSizes();
+    // 除錯：畫面座標（0–1）射線，回傳打到的物件名稱鏈
+    window.__pick = (nx, ny) => {
+      const rc = new THREE.Raycaster();
+      rc.setFromCamera(new THREE.Vector2(nx * 2 - 1, 1 - ny * 2), camera);
+      return rc.intersectObjects(scene.children, true).slice(0, 3).map((h) => {
+        const names = []; for (let o = h.object; o; o = o.parent) if (o.name) names.push(o.name);
+        return { d: +h.distance.toFixed(2), names: names.join(' < '), type: h.object.type };
+      });
+    };
     window.__stats = stats;
     window.__ready = true;
     return;
